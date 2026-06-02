@@ -77,6 +77,37 @@ async function apiFetch(endpoint, options = {}) {
     return data;
 }
 
+/**
+ * Petición pública sin token (para endpoints abiertos como /pricing o /availability).
+ */
+async function publicFetch(endpoint) {
+    console.log(`[api] GET (public) ${API_BASE}${endpoint}`);
+
+    let response;
+    try {
+        response = await fetch(`${API_BASE}${endpoint}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (networkError) {
+        const err = new Error('No se pudo conectar con la API.');
+        err.status = 0;
+        throw err;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+        ? await response.json().catch(() => ({}))
+        : {};
+
+    if (!response.ok) {
+        const err = new Error(data.error || `Error ${response.status}`);
+        err.status = response.status;
+        throw err;
+    }
+
+    return data;
+}
+
 // ── Métodos de conveniencia ──
 
 /** GET autenticado */
@@ -129,6 +160,18 @@ const CalendarAPI = {
     /** Devuelve las fechas ocupadas de un mes */
     getAvailability(year, month) {
         return apiGet(`/availability?year=${year}&month=${month}`);
+    }
+};
+
+const PricingAPI = {
+    /**
+     * Consulta el precio estimado para unas fechas.
+     * @param {string} checkIn  YYYY-MM-DD
+     * @param {string} checkOut YYYY-MM-DD
+     * @returns {{ nights, pricePerNight, totalPrice, breakdown }}
+     */
+    getQuote(checkIn, checkOut) {
+        return publicFetch(`/pricing?check_in=${checkIn}&check_out=${checkOut}`);
     }
 };
 
