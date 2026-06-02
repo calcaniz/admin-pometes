@@ -140,6 +140,6 @@ const AuthAPI = {
 
     /** Verifica que la API está disponible */
     ping() {
-        return apiGet('/health').catch(() => null);
+        return apiGet('/auth/health').catch(() => null);
     }
 };
