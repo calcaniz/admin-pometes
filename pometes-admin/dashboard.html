@@ -99,6 +99,10 @@
                 <span class="nav-icon">💰</span>
                 <span class="nav-label">Precios</span>
             </a>
+            <a href="#" class="nav-item" data-section="analytics">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Analíticas</span>
+            </a>
             <a href="#" class="nav-item" data-section="settings">
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-label">Configuración</span>
@@ -455,6 +459,38 @@
             </section>
 
             <!-- ════════════════════════════════
+                 SECCIÓN: ANALÍTICAS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="analytics">
+
+                <!-- Overview métricas -->
+                <div class="metrics-grid" id="analyticsOverview">
+                    <div class="metric-card"><div class="metric-icon metric-icon-teal">📊</div><div class="metric-info"><span class="metric-value">—</span><span class="metric-label">Cargando...</span></div></div>
+                </div>
+
+                <!-- Ingresos por mes -->
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header">
+                        <h2 class="card-title">💰 Ingresos por mes (últimos 12 meses)</h2>
+                    </div>
+                    <div id="analyticsRevenueByMonth" style="padding:20px 24px 24px">
+                        <div class="an-empty">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Reservas por canal -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🌐 Reservas por canal</h2>
+                    </div>
+                    <div id="analyticsBookingsBySource" style="padding:8px 0 8px">
+                        <div class="an-empty">Cargando...</div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
                  SECCIÓN: CONFIGURACIÓN
                  ════════════════════════════════ -->
             <section class="section" data-section="settings">
@@ -505,6 +541,24 @@
                         </form>
                     </div>
 
+                    <!-- Estancia mínima -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🌙 Reservas</h2>
+                        </div>
+                        <form id="minStayForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="minStayNights">Estancia mínima (noches)</label>
+                                <input type="number" id="minStayNights" min="1" max="30" step="1" placeholder="Ej: 2">
+                                <small class="form-hint">Los huéspedes no podrán reservar menos noches que este valor.</small>
+                            </div>
+                            <div id="minStayError" class="login-error" hidden>
+                                <span id="minStayErrorMsg"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </form>
+                    </div>
+
                     <!-- Información del sistema -->
                     <div class="card settings-info-card">
                         <div class="card-header">
@@ -548,6 +602,7 @@
 <script src="js/bookings.js"></script>
 <script src="js/blocked-dates.js"></script>
 <script src="js/pricing-rules.js"></script>
+<script src="js/analytics.js"></script>
 
 </body>
 </html>

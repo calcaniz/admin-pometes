@@ -175,6 +175,11 @@ const PricingAPI = {
     }
 };
 
+const SettingsAPI = {
+    getAll()         { return publicFetch('/settings'); },
+    update(key, val) { return apiPut(`/settings/${key}`, { value: val }); }
+};
+
 const BlockedDatesAPI = {
     getAll()        { return apiGet('/blocked-dates'); },
     create(data)    { return apiPost('/blocked-dates', data); },
