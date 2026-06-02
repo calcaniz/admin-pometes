@@ -115,19 +115,23 @@ function navigateTo(sectionName) {
 
     // Actualizar título del header
     const titles = {
-        home:     'Inicio',
-        bookings: 'Reservas',
-        calendar: 'Calendario',
-        settings: 'Configuración'
+        home:           'Inicio',
+        bookings:       'Reservas',
+        calendar:       'Calendario',
+        'blocked-dates':'Bloqueos de fechas',
+        'pricing-rules':'Precios por temporada',
+        settings:       'Configuración'
     };
     document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
 
     // Cargar datos de la sección
     switch (sectionName) {
-        case 'home':     loadHomeSection();     break;
-        case 'bookings': initBookingsSection(); break;
-        case 'calendar': initCalendarSection(); break;
-        case 'settings': initSettingsSection(); break;
+        case 'home':           loadHomeSection();           break;
+        case 'bookings':       initBookingsSection();       break;
+        case 'calendar':       initCalendarSection();       break;
+        case 'blocked-dates':  initBlockedDatesSection();   break;
+        case 'pricing-rules':  initPricingRulesSection();   break;
+        case 'settings':       initSettingsSection();       break;
     }
 }
 

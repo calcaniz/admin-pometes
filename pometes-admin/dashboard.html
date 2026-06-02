@@ -91,6 +91,14 @@
                 <span class="nav-icon">📅</span>
                 <span class="nav-label">Calendario</span>
             </a>
+            <a href="#" class="nav-item" data-section="blocked-dates">
+                <span class="nav-icon">🚫</span>
+                <span class="nav-label">Bloqueos</span>
+            </a>
+            <a href="#" class="nav-item" data-section="pricing-rules">
+                <span class="nav-icon">💰</span>
+                <span class="nav-label">Precios</span>
+            </a>
             <a href="#" class="nav-item" data-section="settings">
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-label">Configuración</span>
@@ -328,6 +336,125 @@
             </section>
 
             <!-- ════════════════════════════════
+                 SECCIÓN: BLOQUEOS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="blocked-dates">
+
+                <div class="settings-grid">
+
+                    <!-- Formulario para bloquear fechas -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🚫 Bloquear fechas</h2>
+                        </div>
+                        <form id="blockDateForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="bdDateFrom">Fecha inicio</label>
+                                <input type="date" id="bdDateFrom" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bdDateTo">Fecha fin</label>
+                                <input type="date" id="bdDateTo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bdReason">Motivo <span style="color:var(--text-light);font-weight:400">(opcional)</span></label>
+                                <input type="text" id="bdReason" placeholder="Ej: Limpieza, Uso propio, Obras...">
+                            </div>
+                            <div id="bdFormError" class="login-error" hidden>
+                                <span id="bdFormErrorMsg"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="bdSubmitBtn">Bloquear fechas</button>
+                        </form>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="card" style="align-self:start">
+                        <div class="card-header">
+                            <h2 class="card-title">ℹ️ ¿Cómo funciona?</h2>
+                        </div>
+                        <div style="padding:16px 24px 24px;font-size:14px;color:var(--text-mid);line-height:1.7">
+                            <p style="margin:0 0 12px">Las fechas bloqueadas aparecen como <strong style="color:var(--text)">no disponibles</strong> en el calendario público, igual que las reservas confirmadas.</p>
+                            <p style="margin:0 0 12px">Úsalas para:</p>
+                            <ul style="margin:0;padding-left:18px">
+                                <li>Uso propio o de la familia</li>
+                                <li>Días de limpieza entre reservas</li>
+                                <li>Obras o mantenimiento</li>
+                                <li>Períodos reservados fuera del sistema</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Lista de bloqueos existentes -->
+                <div class="card" style="margin-top:20px">
+                    <div class="card-header">
+                        <h2 class="card-title">Bloqueos activos y próximos</h2>
+                    </div>
+                    <div id="blockedDatesList" style="padding:8px 0">
+                        <div class="bd-loading">Cargando...</div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: PRECIOS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="pricing-rules">
+
+                <!-- Tabla de reglas -->
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header">
+                        <h2 class="card-title">Reglas de precio por temporada</h2>
+                    </div>
+                    <div style="padding:8px 0 4px">
+                        <div class="pr-base-price-note">
+                            💡 Precio base (sin regla): <strong>90 €/noche</strong> — se aplica a cualquier fecha no cubierta por una regla.
+                        </div>
+                    </div>
+                    <div id="pricingRulesList">
+                        <div class="pr-loading">Cargando reglas...</div>
+                    </div>
+                </div>
+
+                <!-- Formulario añadir / editar -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title" id="prFormTitle">➕ Nueva regla de precio</h2>
+                    </div>
+                    <form id="pricingRuleForm" class="settings-form">
+                        <div class="settings-grid" style="gap:16px;padding:0">
+                            <div class="form-group">
+                                <label for="prName">Nombre de la temporada</label>
+                                <input type="text" id="prName" placeholder="Ej: Semana Santa, Verano, Navidad..." required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prPricePerNight">Precio por noche (€)</label>
+                                <input type="number" id="prPricePerNight" placeholder="Ej: 120" min="1" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prDateFrom">Fecha inicio</label>
+                                <input type="date" id="prDateFrom" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prDateTo">Fecha fin</label>
+                                <input type="date" id="prDateTo" required>
+                            </div>
+                        </div>
+                        <div id="prFormError" class="login-error" hidden>
+                            <span id="prFormErrorMsg"></span>
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap">
+                            <button type="submit" class="btn btn-primary" id="prSubmitBtn">Añadir regla</button>
+                            <button type="button" class="btn btn-ghost" id="prCancelEdit" hidden>Cancelar edición</button>
+                        </div>
+                    </form>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
                  SECCIÓN: CONFIGURACIÓN
                  ════════════════════════════════ -->
             <section class="section" data-section="settings">
@@ -419,6 +546,8 @@
 <script src="js/api.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/bookings.js"></script>
+<script src="js/blocked-dates.js"></script>
+<script src="js/pricing-rules.js"></script>
 
 </body>
 </html>
