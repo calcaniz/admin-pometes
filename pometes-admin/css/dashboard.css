@@ -498,6 +498,36 @@
 }
 
 /* =========================================================
+   BARRA DE ACCIONES EN LOTE
+   ========================================================= */
+.bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--navy);
+    color: var(--white);
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    animation: slideUpModal 0.2s ease;
+    flex-wrap: wrap;
+}
+
+.bulk-count {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.row-selected td { background: #EBF4FB !important; }
+
+/* =========================================================
    TABLA DE RESERVAS
    ========================================================= */
 .table-card { margin-bottom: 18px; overflow: hidden; }
