@@ -120,6 +120,7 @@ function navigateTo(sectionName) {
         calendar:       'Calendario',
         'blocked-dates':'Bloqueos de fechas',
         'pricing-rules':'Precios por temporada',
+        analytics:      'Analíticas',
         settings:       'Configuración'
     };
     document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
@@ -131,6 +132,7 @@ function navigateTo(sectionName) {
         case 'calendar':       initCalendarSection();       break;
         case 'blocked-dates':  initBlockedDatesSection();   break;
         case 'pricing-rules':  initPricingRulesSection();   break;
+        case 'analytics':      initAnalyticsSection();      break;
         case 'settings':       initSettingsSection();       break;
     }
 }
@@ -512,6 +514,7 @@ function initSettingsSection() {
     loadStoredPrices();
     initPasswordForm();
     initPriceForm();
+    initMinStayForm();
     initApiCheck();
     showLastAccess();
 }
@@ -589,6 +592,47 @@ function initPriceForm() {
         localStorage.setItem('pometes_cleaning_fee', cleaningFee);
 
         showToast('Precios guardados correctamente.', 'success');
+    });
+}
+
+function initMinStayForm() {
+    const form = document.getElementById('minStayForm');
+    if (!form || form.dataset.initialized) return;
+    form.dataset.initialized = 'true';
+
+    // Cargar valor actual
+    SettingsAPI.getAll().then(function (settings) {
+        const input = document.getElementById('minStayNights');
+        if (input && settings.min_stay_nights) {
+            input.value = settings.min_stay_nights;
+        }
+    }).catch(function () {});
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const val    = parseInt(document.getElementById('minStayNights').value);
+        const errEl  = document.getElementById('minStayError');
+        const msgEl  = document.getElementById('minStayErrorMsg');
+        const btn    = form.querySelector('button[type="submit"]');
+
+        if (errEl) errEl.hidden = true;
+
+        if (!val || val < 1 || val > 30) {
+            if (errEl && msgEl) { msgEl.textContent = 'Introduce un valor entre 1 y 30.'; errEl.hidden = false; }
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+        try {
+            await SettingsAPI.update('min_stay_nights', val);
+            showToast('Estancia mínima actualizada a ' + val + ' ' + (val === 1 ? 'noche' : 'noches'), 'success');
+        } catch (err) {
+            if (errEl && msgEl) { msgEl.textContent = err.message || 'No se pudo guardar.'; errEl.hidden = false; }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Guardar';
+        }
     });
 }
 
