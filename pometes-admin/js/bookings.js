@@ -407,9 +407,15 @@ function cancelBooking(id) {
 
 /** Ejecuta el cambio de estado: actualiza UI optimistamente y luego llama a la API */
 async function executeStatusChange(id, newStatus) {
+    // Guardar el estado previo ANTES del cambio optimista para poder revertirlo si falla
+    const booking    = findBooking(id);
+    const prevStatus = booking ? booking.status : null;
+
+    console.log(`[bookings] executeStatusChange id=${id} ${prevStatus} → ${newStatus}`);
+
     // Actualización optimista: cambiar el estado en memoria antes de esperar la API
     updateBookingInState(id, { status: newStatus });
-    applyFilters(); // re-renderizar con el nuevo estado
+    applyFilters();
 
     const messages = {
         confirmed: { ok: '✅ Reserva confirmada correctamente.',  err: 'No se pudo confirmar la reserva.' },
@@ -417,14 +423,24 @@ async function executeStatusChange(id, newStatus) {
     };
 
     try {
+        // Verificar que el token existe antes de enviar
+        const token = getToken();
+        console.log(`[bookings] Token presente: ${!!token}`);
+        console.log(`[bookings] PUT /api/bookings/${id}/status  body:`, { status: newStatus });
+
         await BookingsAPI.updateStatus(id, newStatus);
+
+        console.log(`[bookings] PUT /api/bookings/${id}/status → OK`);
         showToast(messages[newStatus].ok, 'success');
 
     } catch (error) {
-        // Revertir el cambio optimista si la API falla
-        const prevStatus = newStatus === 'confirmed' ? 'pending' : 'confirmed';
-        updateBookingInState(id, { status: prevStatus });
-        applyFilters();
+        console.error(`[bookings] PUT /api/bookings/${id}/status → ERROR`, error);
+
+        // Revertir al estado anterior real (no asumir cuál era)
+        if (prevStatus) {
+            updateBookingInState(id, { status: prevStatus });
+            applyFilters();
+        }
 
         showToast(`${messages[newStatus].err} ${error.message}`, 'error');
     }
