@@ -738,6 +738,9 @@ function renderBookingModal(booking) {
                     <label>Precio total</label>
                     <span style="font-size:18px;font-weight:700;color:var(--text)">${price}</span>
                 </div>
+                <div id="modalPricingBreakdown" style="margin-top:12px">
+                    <div class="skeleton" style="height:60px;border-radius:6px"></div>
+                </div>
             </div>
 
             <!-- Estado y origen -->
@@ -771,6 +774,13 @@ function renderBookingModal(booking) {
         </div>
     `;
 
+    // Cargar desglose de precio de forma asíncrona
+    const checkInRaw  = booking.checkIn  || booking.check_in;
+    const checkOutRaw = booking.checkOut || booking.check_out;
+    if (checkInRaw && checkOutRaw) {
+        loadModalPricingBreakdown(checkInRaw, checkOutRaw);
+    }
+
     // Botones de acción según el estado
     footer.innerHTML = '';
 
@@ -801,6 +811,79 @@ function renderBookingModal(booking) {
         });
         footer.appendChild(cancelBtn);
     }
+}
+
+/** Carga y renderiza el desglose de precio en el modal */
+async function loadModalPricingBreakdown(checkIn, checkOut) {
+    const el = document.getElementById('modalPricingBreakdown');
+    if (!el) return;
+
+    try {
+        const pricing = await PricingAPI.getQuote(checkIn, checkOut);
+        el.innerHTML = renderPricingBreakdownHtml(pricing);
+    } catch (err) {
+        console.warn('[pricing] No se pudo cargar el desglose:', err.message);
+        el.remove();
+    }
+}
+
+/** Genera el HTML del desglose de precios */
+function renderPricingBreakdownHtml(pricing) {
+    const { nights, totalPrice, breakdown } = pricing;
+
+    // Si solo hay un período con precio uniforme, mostrar versión compacta
+    if (breakdown.length === 1) {
+        return `
+            <div style="background:#f9f6f0;border-radius:6px;padding:10px 14px;
+                        font-family:Arial,sans-serif;font-size:13px;color:#666;margin-top:4px">
+                💶 ${nights} noche${nights !== 1 ? 's' : ''} × ${formatCurrency(breakdown[0].pricePerNight)}
+                = <strong style="color:var(--text)">${formatCurrency(totalPrice)}</strong>
+            </div>`;
+    }
+
+    // Desglose completo con tabla cuando hay varias tarifas
+    const rows = breakdown.map(function (b) {
+        return `
+            <tr>
+                <td style="padding:6px 10px;color:#555">${escapeHtml(b.name)}</td>
+                <td style="padding:6px 10px;text-align:center">${b.nights}</td>
+                <td style="padding:6px 10px;text-align:right">${formatCurrency(b.pricePerNight)}</td>
+                <td style="padding:6px 10px;text-align:right;font-weight:600">${formatCurrency(b.subtotal)}</td>
+            </tr>`;
+    }).join('');
+
+    return `
+        <div style="margin-top:8px;border:1px solid #e8e0d0;border-radius:6px;overflow:hidden">
+            <div style="background:#f0ece4;padding:6px 10px;font-family:Arial,sans-serif;
+                        font-size:11px;font-weight:700;color:#2C5F7A;letter-spacing:1px;
+                        text-transform:uppercase">
+                💶 Desglose del precio
+            </div>
+            <table width="100%" cellpadding="0" cellspacing="0"
+                   style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse">
+                <thead>
+                    <tr style="background:#faf7f3">
+                        <th style="padding:6px 10px;text-align:left;color:#999;font-weight:normal">Período</th>
+                        <th style="padding:6px 10px;text-align:center;color:#999;font-weight:normal">Noches</th>
+                        <th style="padding:6px 10px;text-align:right;color:#999;font-weight:normal">Precio/noche</th>
+                        <th style="padding:6px 10px;text-align:right;color:#999;font-weight:normal">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+                <tfoot>
+                    <tr style="background:#f0ece4;border-top:2px solid #e8e0d0">
+                        <td style="padding:8px 10px;font-weight:700;color:#2C5F7A" colspan="2">
+                            Total — ${nights} noche${nights !== 1 ? 's' : ''}
+                        </td>
+                        <td></td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:700;
+                                   font-size:15px;color:#2C5F7A">
+                            ${formatCurrency(totalPrice)}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
 }
 
 function closeBookingModal() {
