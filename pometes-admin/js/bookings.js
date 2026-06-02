@@ -45,10 +45,14 @@ function initBookingsSection() {
 
 async function loadBookings() {
     setTableLoading(true);
+    console.log('[bookings] Llamando a GET /api/bookings...');
 
     try {
         const data = await BookingsAPI.getAll();
+        console.log('[bookings] Respuesta de API:', data);
+
         const list = Array.isArray(data) ? data : (data.bookings || []);
+        console.log('[bookings] Reservas cargadas:', list.length);
 
         // Sincronizar con el estado global
         AppState.bookings = list;
@@ -58,6 +62,7 @@ async function loadBookings() {
         applyFilters();
 
     } catch (error) {
+        console.error('[bookings] Error al cargar reservas:', error);
         showToast('Error al cargar las reservas: ' + error.message, 'error');
         setTableLoading(false);
     }
