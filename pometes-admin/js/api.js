@@ -55,7 +55,7 @@ async function apiFetch(endpoint, options = {}) {
     if (response.status === 401) {
         console.warn('[api] 401 recibido — cerrando sesión');
         logout();
-        return;
+        throw new Error('Sesión expirada. Por favor, vuelve a iniciar sesión.');
     }
 
     // Intentar parsear la respuesta como JSON
@@ -173,6 +173,19 @@ const PricingAPI = {
     getQuote(checkIn, checkOut) {
         return publicFetch(`/pricing?check_in=${checkIn}&check_out=${checkOut}`);
     }
+};
+
+const BlockedDatesAPI = {
+    getAll()        { return apiGet('/blocked-dates'); },
+    create(data)    { return apiPost('/blocked-dates', data); },
+    remove(id)      { return apiDelete(`/blocked-dates/${id}`); }
+};
+
+const PricingRulesAPI = {
+    getAll()        { return apiGet('/pricing-rules'); },
+    create(data)    { return apiPost('/pricing-rules', data); },
+    update(id, data){ return apiPut(`/pricing-rules/${id}`, data); },
+    remove(id)      { return apiDelete(`/pricing-rules/${id}`); }
 };
 
 const AuthAPI = {

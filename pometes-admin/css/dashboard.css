@@ -1077,6 +1077,149 @@
     .modal-footer { padding: 12px 20px 18px; flex-wrap: wrap; }
 }
 
+/* =========================================================
+   SECCIÓN: BLOQUEOS DE FECHAS
+   ========================================================= */
+
+.bd-loading,
+.bd-empty {
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--text-mid);
+    font-size: 14px;
+}
+
+.bd-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+.bd-item:last-child { border-bottom: none; }
+.bd-item:hover      { background: var(--sky); }
+.bd-item--past      { opacity: 0.55; }
+
+.bd-item-icon { font-size: 22px; flex-shrink: 0; }
+
+.bd-item-info { flex: 1; min-width: 0; }
+
+.bd-item-dates {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bd-nights {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+    background: var(--sky-mid);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.bd-item-reason {
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-top: 3px;
+}
+
+.bd-item-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.bd-status,
+.pr-status {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 10px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.bd-status-active,
+.pr-status-active   { background: #D1F2E0; color: #1a7a45; }
+.bd-status-upcoming,
+.pr-status-upcoming { background: #EBF4FB; color: #2C5F7A; }
+.bd-status-past,
+.pr-status-past     { background: var(--sky); color: var(--text-light); }
+
+/* =========================================================
+   SECCIÓN: PRECIOS POR TEMPORADA
+   ========================================================= */
+
+.pr-base-price-note {
+    margin: 4px 24px 16px;
+    background: #FEF9EC;
+    border: 1px solid #F6E199;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #7a6010;
+}
+
+.pr-loading,
+.pr-empty {
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--text-mid);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.pr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.pr-table th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--sky);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.pr-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+}
+
+.pr-table tbody tr:last-child td { border-bottom: none; }
+.pr-table tbody tr:hover          { background: var(--sky); }
+.pr-row--past td                  { opacity: 0.55; }
+.pr-row--editing                  { background: #EBF8F6 !important; }
+
+.pr-col-name  { font-weight: 600; }
+.pr-col-date  { white-space: nowrap; font-size: 13px; }
+.pr-col-price { font-size: 15px; color: var(--navy); }
+
+.pr-col-actions {
+    display: flex;
+    gap: 4px;
+    white-space: nowrap;
+}
+
 @media (max-width: 480px) {
     .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .metric-card  { padding: 16px 14px; gap: 12px; }
