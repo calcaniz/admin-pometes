@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casa Pometes — Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<!-- ========================
+     TOAST NOTIFICATIONS
+     ======================== -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ========================
+     LOADING OVERLAY GLOBAL
+     ======================== -->
+<div class="loading-overlay" id="loadingOverlay" hidden>
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- ========================
+     DIÁLOGO DE CONFIRMACIÓN
+     ======================== -->
+<div class="confirm-overlay" id="confirmOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-dialog">
+        <div class="confirm-icon" id="confirmIcon">❓</div>
+        <h3 id="confirmTitle">¿Estás seguro?</h3>
+        <p id="confirmMessage">Esta acción no se puede deshacer.</p>
+        <div class="confirm-actions">
+            <button class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+            <button class="btn btn-danger" id="confirmAccept">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================
+     MODAL DETALLE DE RESERVA
+     ======================== -->
+<div class="modal-overlay" id="bookingModalOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal" id="bookingModal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Detalle de reserva</h2>
+            <button class="modal-close btn-icon" id="modalClose" aria-label="Cerrar modal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Se rellena dinámicamente -->
+        </div>
+        <div class="modal-footer" id="modalFooter">
+            <!-- Botones acción (confirmar/cancelar reserva) -->
+        </div>
+    </div>
+</div>
+
+<!-- ========================
+     LAYOUT PRINCIPAL
+     ======================== -->
+<div class="dashboard-layout">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
+        <!-- Logo -->
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">🏡</span>
+            <div>
+                <span class="logo-casa">Casa </span><span class="logo-pometes">Pometes</span>
+            </div>
+        </div>
+
+        <!-- Navegación principal -->
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Inicio</span>
+            </a>
+            <a href="#" class="nav-item" data-section="bookings">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Reservas</span>
+                <span class="nav-badge" id="pendingBadge" hidden>0</span>
+            </a>
+            <a href="#" class="nav-item" data-section="calendar">
+                <span class="nav-icon">📅</span>
+                <span class="nav-label">Calendario</span>
+            </a>
+            <a href="#" class="nav-item" data-section="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Configuración</span>
+            </a>
+        </nav>
+
+        <!-- Botón logout -->
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                <span>Cerrar sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Overlay oscuro para cerrar sidebar en móvil -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ── ÁREA PRINCIPAL ── -->
+    <div class="main-wrapper">
+
+        <!-- Header superior -->
+        <header class="main-header">
+            <div class="header-left">
+                <button class="hamburger" id="hamburger" aria-label="Abrir menú" aria-expanded="false">
+                    <span></span><span></span><span></span>
+                </button>
+                <h1 class="header-title" id="headerTitle">Inicio</h1>
+            </div>
+            <div class="header-right">
+                <span class="header-date" id="headerDate"></span>
+                <div class="admin-avatar" title="Administrador">CP</div>
+            </div>
+        </header>
+
+        <!-- Contenido de las secciones -->
+        <main class="main-content">
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: INICIO
+                 ════════════════════════════════ -->
+            <section class="section active" data-section="home">
+
+                <!-- Métricas -->
+                <div class="metrics-grid" id="metricsGrid">
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-warning">📋</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="metricPending">—</span>
+                            <span class="metric-label">Pendientes de confirmar</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-success">✅</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="metricConfirmed">—</span>
+                            <span class="metric-label">Confirmadas este mes</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-danger">❌</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="metricCancelled">—</span>
+                            <span class="metric-label">Canceladas este mes</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-teal">💰</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="metricIncome">—</span>
+                            <span class="metric-label">Ingresos este mes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Últimas reservas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Últimas reservas</h2>
+                        <a href="#" class="card-action" data-section="bookings">Ver todas →</a>
+                    </div>
+                    <div id="recentBookingsList">
+                        <div class="skeleton-list">
+                            <div class="skeleton-item"></div>
+                            <div class="skeleton-item"></div>
+                            <div class="skeleton-item"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: RESERVAS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="bookings">
+
+                <!-- Filtros -->
+                <div class="card filters-card">
+                    <div class="filters-row">
+                        <!-- Filtro por estado -->
+                        <div class="filter-group">
+                            <label class="filter-label">Estado</label>
+                            <div class="filter-tabs" id="statusFilter">
+                                <button class="filter-tab active" data-value="">Todas</button>
+                                <button class="filter-tab" data-value="pending">Pendientes</button>
+                                <button class="filter-tab" data-value="confirmed">Confirmadas</button>
+                                <button class="filter-tab" data-value="cancelled">Canceladas</button>
+                            </div>
+                        </div>
+                        <!-- Filtro por origen -->
+                        <div class="filter-group">
+                            <label class="filter-label">Origen</label>
+                            <div class="filter-tabs" id="sourceFilter">
+                                <button class="filter-tab active" data-value="">Todas</button>
+                                <button class="filter-tab" data-value="direct">Web directa</button>
+                                <button class="filter-tab" data-value="airbnb">Airbnb</button>
+                                <button class="filter-tab" data-value="booking">Booking</button>
+                            </div>
+                        </div>
+                        <!-- Buscador -->
+                        <div class="filter-search">
+                            <label class="filter-label">Buscar</label>
+                            <div class="search-wrapper">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="search" id="searchInput" placeholder="Nombre o email del huésped..." class="search-input">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Contador de resultados -->
+                    <div class="results-info">
+                        <span id="resultsCount">Cargando reservas...</span>
+                    </div>
+                </div>
+
+                <!-- Tabla de reservas (desktop) -->
+                <div class="card table-card">
+                    <div class="table-wrapper" id="tableWrapper">
+                        <table class="bookings-table" id="bookingsTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Huésped</th>
+                                    <th>Check-in</th>
+                                    <th>Check-out</th>
+                                    <th>Noches</th>
+                                    <th>Precio</th>
+                                    <th>Origen</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookingsTableBody">
+                                <!-- Se rellena dinámicamente -->
+                            </tbody>
+                        </table>
+                        <!-- Estado vacío -->
+                        <div id="tableEmptyState" class="empty-state" hidden>
+                            <div style="font-size:40px;margin-bottom:8px">📋</div>
+                            <p>No hay reservas que coincidan con los filtros</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cards de reservas (móvil) -->
+                <div id="bookingsCards" class="bookings-cards-list">
+                    <!-- Se rellena dinámicamente -->
+                </div>
+
+                <!-- Paginación -->
+                <div class="pagination" id="pagination">
+                    <button class="btn btn-ghost btn-sm" id="prevPage" disabled>
+                        ← Anterior
+                    </button>
+                    <span class="pagination-info" id="paginationInfo"></span>
+                    <button class="btn btn-ghost btn-sm" id="nextPage" disabled>
+                        Siguiente →
+                    </button>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: CALENDARIO
+                 ════════════════════════════════ -->
+            <section class="section" data-section="calendar">
+
+                <div class="card calendar-card">
+                    <!-- Cabecera del calendario -->
+                    <div class="calendar-header">
+                        <button class="btn btn-ghost btn-sm" id="calPrevMonth">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+                        <h2 class="calendar-title" id="calendarTitle">Junio 2026</h2>
+                        <button class="btn btn-ghost btn-sm" id="calNextMonth">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Leyenda -->
+                    <div class="calendar-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot legend-occupied"></span> Ocupado
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot legend-today"></span> Hoy
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot legend-free"></span> Libre
+                        </span>
+                    </div>
+
+                    <!-- Grid del calendario -->
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Se rellena dinámicamente -->
+                    </div>
+
+                    <!-- Info del día seleccionado -->
+                    <div class="calendar-day-info" id="calendarDayInfo" hidden>
+                        <div class="day-info-content" id="calendarDayInfoContent"></div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: CONFIGURACIÓN
+                 ════════════════════════════════ -->
+            <section class="section" data-section="settings">
+
+                <div class="settings-grid">
+
+                    <!-- Cambiar contraseña -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🔑 Seguridad</h2>
+                        </div>
+                        <form id="changePasswordForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="currentPassword">Contraseña actual</label>
+                                <input type="password" id="currentPassword" placeholder="Contraseña actual" autocomplete="current-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">Nueva contraseña</label>
+                                <input type="password" id="newPassword" placeholder="Nueva contraseña" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirmar nueva contraseña</label>
+                                <input type="password" id="confirmPassword" placeholder="Repite la nueva contraseña" autocomplete="new-password">
+                            </div>
+                            <div id="passwordChangeError" class="login-error" hidden>
+                                <span id="passwordChangeErrorMsg"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Cambiar contraseña</button>
+                        </form>
+                    </div>
+
+                    <!-- Configuración de precios -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">💰 Precios</h2>
+                        </div>
+                        <form id="priceForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="basePrice">Precio base por noche (€)</label>
+                                <input type="number" id="basePrice" placeholder="Ej: 90" min="0" step="0.01">
+                                <small class="form-hint">Este valor se guarda localmente en tu dispositivo.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="cleaningFee">Tarifa de limpieza (€)</label>
+                                <input type="number" id="cleaningFee" placeholder="Ej: 50" min="0" step="0.01">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Guardar precios</button>
+                        </form>
+                    </div>
+
+                    <!-- Información del sistema -->
+                    <div class="card settings-info-card">
+                        <div class="card-header">
+                            <h2 class="card-title">ℹ️ Sistema</h2>
+                        </div>
+                        <div class="system-info-list">
+                            <div class="system-info-row">
+                                <span class="system-info-label">Versión del panel</span>
+                                <span class="system-info-value">1.0.0</span>
+                            </div>
+                            <div class="system-info-row">
+                                <span class="system-info-label">API</span>
+                                <span class="system-info-value">https://casaruralpometes.es/api</span>
+                            </div>
+                            <div class="system-info-row">
+                                <span class="system-info-label">Último acceso</span>
+                                <span class="system-info-value" id="lastAccess">—</span>
+                            </div>
+                            <div class="system-info-row">
+                                <span class="system-info-label">Estado API</span>
+                                <span class="system-info-value" id="apiStatus">
+                                    <span class="status-dot status-dot-checking"></span> Verificando...
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" id="checkApiBtn" style="margin-top:16px">Verificar conexión API</button>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+    </div><!-- /.main-wrapper -->
+</div><!-- /.dashboard-layout -->
+
+<!-- Scripts (orden importante: dependencias primero) -->
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/bookings.js"></script>
+
+</body>
+</html>

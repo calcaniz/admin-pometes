@@ -1,0 +1,951 @@
+/* =========================================================
+   DASHBOARD.JS — Lógica principal del panel
+   Casa Rural Pometes · Panel de Administración
+   ========================================================= */
+
+'use strict';
+
+// ── Estado global compartido ──
+const AppState = {
+    bookings: [],          // todas las reservas cargadas en memoria
+    currentSection: 'home'
+};
+
+// ── Inicialización cuando el DOM está listo ──
+document.addEventListener('DOMContentLoaded', function () {
+    // Verificar sesión: redirige si no hay token
+    requireAuth();
+
+    initSidebar();
+    initNavigation();
+    initHeader();
+    initLogout();
+
+    // Cargar la sección inicial (Inicio)
+    navigateTo('home');
+});
+
+/* =========================================================
+   SIDEBAR Y NAVEGACIÓN MÓVIL
+   ========================================================= */
+
+function initSidebar() {
+    const sidebar        = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const hamburger      = document.getElementById('hamburger');
+
+    // Abrir sidebar en móvil
+    hamburger.addEventListener('click', function () {
+        const isOpen = sidebar.classList.contains('open');
+        setSidebarOpen(!isOpen);
+    });
+
+    // Cerrar al tocar el overlay
+    sidebarOverlay.addEventListener('click', function () {
+        setSidebarOpen(false);
+    });
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            setSidebarOpen(false);
+        }
+    });
+}
+
+function setSidebarOpen(open) {
+    const sidebar        = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const hamburger      = document.getElementById('hamburger');
+
+    sidebar.classList.toggle('open', open);
+    sidebarOverlay.classList.toggle('active', open);
+    hamburger.classList.toggle('open', open);
+    hamburger.setAttribute('aria-expanded', String(open));
+}
+
+/* =========================================================
+   NAVEGACIÓN ENTRE SECCIONES
+   ========================================================= */
+
+function initNavigation() {
+    // Links del menú lateral
+    document.querySelectorAll('.nav-item[data-section]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            navigateTo(this.dataset.section);
+            setSidebarOpen(false); // cerrar sidebar en móvil al navegar
+        });
+    });
+
+    // Links "Ver todas →" de la sección de inicio
+    document.querySelectorAll('.card-action[data-section]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            navigateTo(this.dataset.section);
+        });
+    });
+}
+
+/** Navega a la sección indicada y carga sus datos */
+function navigateTo(sectionName) {
+    if (AppState.currentSection === sectionName) return;
+
+    AppState.currentSection = sectionName;
+
+    // Actualizar clases activas en el menú
+    document.querySelectorAll('.nav-item[data-section]').forEach(function (item) {
+        item.classList.toggle('active', item.dataset.section === sectionName);
+    });
+
+    // Mostrar la sección correspondiente
+    document.querySelectorAll('.section[data-section]').forEach(function (section) {
+        section.classList.toggle('active', section.dataset.section === sectionName);
+    });
+
+    // Actualizar título del header
+    const titles = {
+        home:     'Inicio',
+        bookings: 'Reservas',
+        calendar: 'Calendario',
+        settings: 'Configuración'
+    };
+    document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
+
+    // Cargar datos de la sección
+    switch (sectionName) {
+        case 'home':     loadHomeSection();     break;
+        case 'bookings': initBookingsSection(); break;
+        case 'calendar': initCalendarSection(); break;
+        case 'settings': initSettingsSection(); break;
+    }
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+function initHeader() {
+    // Mostrar fecha actual
+    const dateEl = document.getElementById('headerDate');
+    if (dateEl) {
+        const now = new Date();
+        dateEl.textContent = now.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            day:     'numeric',
+            month:   'long',
+            year:    'numeric'
+        });
+    }
+}
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+function initLogout() {
+    const btn = document.getElementById('logoutBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        showConfirm({
+            icon:    '👋',
+            title:   '¿Cerrar sesión?',
+            message: 'Se cerrará tu sesión y volverás a la pantalla de acceso.',
+            acceptText:  'Cerrar sesión',
+            acceptClass: 'btn-danger',
+            onAccept: function () { logout(); }
+        });
+    });
+}
+
+/* =========================================================
+   SECCIÓN: INICIO
+   ========================================================= */
+
+async function loadHomeSection() {
+    // Si ya tenemos reservas en memoria, calcular métricas directamente
+    if (AppState.bookings.length > 0) {
+        renderMetrics(AppState.bookings);
+        renderRecentBookings(AppState.bookings);
+        return;
+    }
+
+    try {
+        const data = await BookingsAPI.getAll();
+        // La API puede devolver { bookings: [] } o directamente []
+        AppState.bookings = Array.isArray(data) ? data : (data.bookings || []);
+
+        renderMetrics(AppState.bookings);
+        renderRecentBookings(AppState.bookings);
+        updatePendingBadge();
+
+    } catch (error) {
+        showToast('No se pudieron cargar las reservas: ' + error.message, 'error');
+        renderMetrics([]);
+        renderRecentBookings([]);
+    }
+}
+
+/** Renderiza las 4 tarjetas de métricas */
+function renderMetrics(bookings) {
+    const now        = new Date();
+    const thisYear   = now.getFullYear();
+    const thisMonth  = now.getMonth(); // 0-based
+
+    // Filtrar reservas del mes actual
+    const ofThisMonth = bookings.filter(function (b) {
+        const date = new Date(b.checkIn || b.check_in || b.createdAt || b.created_at || '');
+        return date.getFullYear() === thisYear && date.getMonth() === thisMonth;
+    });
+
+    const pending   = bookings.filter(function (b) { return b.status === 'pending'; }).length;
+    const confirmed = ofThisMonth.filter(function (b) { return b.status === 'confirmed'; }).length;
+    const cancelled = ofThisMonth.filter(function (b) { return b.status === 'cancelled'; }).length;
+    const income    = ofThisMonth
+        .filter(function (b) { return b.status === 'confirmed'; })
+        .reduce(function (sum, b) { return sum + Number(b.totalPrice || b.total_price || 0); }, 0);
+
+    document.getElementById('metricPending').textContent   = pending;
+    document.getElementById('metricConfirmed').textContent = confirmed;
+    document.getElementById('metricCancelled').textContent = cancelled;
+    document.getElementById('metricIncome').textContent    = formatCurrency(income);
+}
+
+/** Renderiza la lista de las últimas 5 reservas */
+function renderRecentBookings(bookings) {
+    const container = document.getElementById('recentBookingsList');
+    if (!container) return;
+
+    // Ordenar por fecha de creación (más reciente primero)
+    const sorted = [...bookings].sort(function (a, b) {
+        return new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0);
+    });
+
+    const recent = sorted.slice(0, 5);
+
+    if (recent.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No hay reservas todavía</p></div>';
+        return;
+    }
+
+    container.innerHTML = recent.map(function (booking) {
+        const name     = booking.guestName  || booking.guest_name  || 'Sin nombre';
+        const initials = getInitials(name);
+        const checkIn  = formatDate(booking.checkIn  || booking.check_in);
+        const checkOut = formatDate(booking.checkOut || booking.check_out);
+        const price    = formatCurrency(booking.totalPrice || booking.total_price || 0);
+        const badgeHtml = renderBadge(booking.status);
+
+        return `
+            <div class="recent-booking-item" data-id="${booking.id}" title="Ver detalles">
+                <div class="recent-guest-avatar">${initials}</div>
+                <div class="recent-booking-info">
+                    <div class="recent-booking-name">${escapeHtml(name)}</div>
+                    <div class="recent-booking-dates">${checkIn} → ${checkOut}</div>
+                </div>
+                <div class="recent-booking-right">
+                    <span class="recent-booking-price">${price}</span>
+                    ${badgeHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Click para abrir modal de detalle
+    container.querySelectorAll('.recent-booking-item').forEach(function (item) {
+        item.addEventListener('click', function () {
+            openBookingModal(this.dataset.id);
+        });
+    });
+}
+
+/** Actualiza el badge de pendientes en el menú lateral */
+function updatePendingBadge() {
+    const badge   = document.getElementById('pendingBadge');
+    const pending = AppState.bookings.filter(function (b) { return b.status === 'pending'; }).length;
+
+    if (pending > 0) {
+        badge.textContent = pending > 99 ? '99+' : pending;
+        badge.hidden = false;
+    } else {
+        badge.hidden = true;
+    }
+}
+
+/* =========================================================
+   SECCIÓN: CALENDARIO
+   ========================================================= */
+
+// Estado del calendario
+const CalState = {
+    year:        new Date().getFullYear(),
+    month:       new Date().getMonth() + 1, // 1-based
+    bookedDates: [],
+    selectedDay: null
+};
+
+function initCalendarSection() {
+    const prevBtn = document.getElementById('calPrevMonth');
+    const nextBtn = document.getElementById('calNextMonth');
+
+    // Evitar registrar múltiples listeners
+    if (prevBtn.dataset.initialized) return;
+    prevBtn.dataset.initialized = nextBtn.dataset.initialized = 'true';
+
+    prevBtn.addEventListener('click', function () {
+        if (CalState.month === 1) {
+            CalState.month = 12;
+            CalState.year--;
+        } else {
+            CalState.month--;
+        }
+        CalState.selectedDay = null;
+        document.getElementById('calendarDayInfo').hidden = true;
+        loadCalendar();
+    });
+
+    nextBtn.addEventListener('click', function () {
+        if (CalState.month === 12) {
+            CalState.month = 1;
+            CalState.year++;
+        } else {
+            CalState.month++;
+        }
+        CalState.selectedDay = null;
+        document.getElementById('calendarDayInfo').hidden = true;
+        loadCalendar();
+    });
+
+    loadCalendar();
+}
+
+async function loadCalendar() {
+    updateCalendarTitle();
+    renderCalendarSkeleton();
+
+    try {
+        const data = await CalendarAPI.getAvailability(CalState.year, CalState.month);
+        CalState.bookedDates = data.bookedDates || [];
+    } catch (error) {
+        showToast('No se pudo cargar la disponibilidad: ' + error.message, 'error');
+        CalState.bookedDates = [];
+    }
+
+    renderCalendar();
+}
+
+function updateCalendarTitle() {
+    const title = new Date(CalState.year, CalState.month - 1, 1)
+        .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    document.getElementById('calendarTitle').textContent =
+        title.charAt(0).toUpperCase() + title.slice(1);
+}
+
+function renderCalendarSkeleton() {
+    const grid = document.getElementById('calendarGrid');
+    // Mantener cabeceras de días si ya existen
+    const weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    grid.innerHTML = weekdays.map(function (d) {
+        return `<div class="cal-weekday">${d}</div>`;
+    }).join('');
+}
+
+function renderCalendar() {
+    const grid     = document.getElementById('calendarGrid');
+    const today    = new Date();
+    const todayStr = formatDateISO(today);
+
+    const weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    let html = weekdays.map(function (d) {
+        return `<div class="cal-weekday">${d}</div>`;
+    }).join('');
+
+    // Primer día del mes (ajustado: Lunes = 0)
+    const firstDay  = new Date(CalState.year, CalState.month - 1, 1);
+    const lastDay   = new Date(CalState.year, CalState.month, 0).getDate();
+    let startOffset = (firstDay.getDay() + 6) % 7; // 0=Lun, 6=Dom
+
+    // Celdas vacías iniciales
+    for (let i = 0; i < startOffset; i++) {
+        html += '<div class="cal-day empty"></div>';
+    }
+
+    // Días del mes
+    for (let day = 1; day <= lastDay; day++) {
+        const dateStr  = `${CalState.year}-${pad2(CalState.month)}-${pad2(day)}`;
+        const isToday  = dateStr === todayStr;
+        const isBooked = CalState.bookedDates.includes(dateStr);
+
+        let classes = 'cal-day';
+        if (isToday)  classes += ' today';
+        if (isBooked) classes += ' occupied';
+        else if (!isToday) classes += ' free';
+        if (CalState.selectedDay === dateStr) classes += ' selected';
+
+        html += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
+    }
+
+    grid.innerHTML = html;
+
+    // Registrar clicks en días ocupados
+    grid.querySelectorAll('.cal-day.occupied').forEach(function (cell) {
+        cell.addEventListener('click', function () {
+            const date = this.dataset.date;
+            CalState.selectedDay = date;
+
+            // Marcar seleccionado visualmente
+            grid.querySelectorAll('.cal-day.selected').forEach(function (el) {
+                el.classList.remove('selected');
+            });
+            this.classList.add('selected');
+
+            showCalendarDayInfo(date);
+        });
+    });
+}
+
+/** Muestra la información de la reserva para un día ocupado */
+function showCalendarDayInfo(dateStr) {
+    const infoEl   = document.getElementById('calendarDayInfo');
+    const content  = document.getElementById('calendarDayInfoContent');
+
+    // Buscar la reserva que cubre esa fecha en el estado global
+    const booking = AppState.bookings.find(function (b) {
+        const checkIn  = b.checkIn  || b.check_in;
+        const checkOut = b.checkOut || b.check_out;
+        return checkIn && checkOut && dateStr >= checkIn && dateStr < checkOut;
+    });
+
+    const dateFormatted = new Date(dateStr + 'T00:00:00').toLocaleDateString('es-ES', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    if (!booking) {
+        content.innerHTML = `
+            <div class="day-info-title">📅 ${dateFormatted}</div>
+            <p style="color:var(--text-mid);font-size:14px">Ocupado — sin detalles disponibles localmente.</p>
+        `;
+        infoEl.hidden = false;
+        return;
+    }
+
+    const name    = booking.guestName  || booking.guest_name || 'Huésped';
+    const checkIn = formatDate(booking.checkIn  || booking.check_in);
+    const checkOut= formatDate(booking.checkOut || booking.check_out);
+    const nights  = booking.nights || calcNights(booking.checkIn || booking.check_in, booking.checkOut || booking.check_out);
+    const price   = formatCurrency(booking.totalPrice || booking.total_price || 0);
+
+    content.innerHTML = `
+        <div class="day-info-title">
+            📅 ${dateFormatted}
+            <button class="btn btn-sm btn-primary" onclick="openBookingModal(${booking.id})">Ver reserva</button>
+        </div>
+        <div class="day-info-fields">
+            <div class="day-info-field">
+                <label>Huésped</label>
+                <span>${escapeHtml(name)}</span>
+            </div>
+            <div class="day-info-field">
+                <label>Check-in</label>
+                <span>${checkIn}</span>
+            </div>
+            <div class="day-info-field">
+                <label>Check-out</label>
+                <span>${checkOut}</span>
+            </div>
+            <div class="day-info-field">
+                <label>Noches</label>
+                <span>${nights}</span>
+            </div>
+            <div class="day-info-field">
+                <label>Precio</label>
+                <span>${price}</span>
+            </div>
+            <div class="day-info-field">
+                <label>Estado</label>
+                <span>${renderBadge(booking.status)}</span>
+            </div>
+        </div>
+    `;
+    infoEl.hidden = false;
+}
+
+/* =========================================================
+   SECCIÓN: CONFIGURACIÓN
+   ========================================================= */
+
+function initSettingsSection() {
+    if (document.getElementById('settingsInitialized')) return;
+    document.getElementById('basePrice') && (document.getElementById('settingsInitialized').hidden = false);
+
+    // Evitar reinicializar
+    const marker = document.createElement('span');
+    marker.id = 'settingsInitialized';
+    marker.hidden = true;
+    document.querySelector('[data-section="settings"]').appendChild(marker);
+
+    loadStoredPrices();
+    initPasswordForm();
+    initPriceForm();
+    initApiCheck();
+    showLastAccess();
+}
+
+/** Carga los precios guardados en localStorage */
+function loadStoredPrices() {
+    const basePrice    = localStorage.getItem('pometes_base_price')    || '';
+    const cleaningFee  = localStorage.getItem('pometes_cleaning_fee')  || '';
+    const basePriceEl  = document.getElementById('basePrice');
+    const cleaningEl   = document.getElementById('cleaningFee');
+
+    if (basePriceEl)  basePriceEl.value  = basePrice;
+    if (cleaningEl)   cleaningEl.value   = cleaningFee;
+}
+
+function initPasswordForm() {
+    const form    = document.getElementById('changePasswordForm');
+    const errorEl = document.getElementById('passwordChangeError');
+    const errorMsg= document.getElementById('passwordChangeErrorMsg');
+
+    if (!form || form.dataset.initialized) return;
+    form.dataset.initialized = 'true';
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const currentPw  = document.getElementById('currentPassword').value;
+        const newPw      = document.getElementById('newPassword').value;
+        const confirmPw  = document.getElementById('confirmPassword').value;
+
+        if (!currentPw || !newPw || !confirmPw) {
+            showFormError(errorEl, errorMsg, 'Todos los campos son obligatorios.');
+            return;
+        }
+
+        if (newPw !== confirmPw) {
+            showFormError(errorEl, errorMsg, 'Las contraseñas nuevas no coinciden.');
+            return;
+        }
+
+        if (newPw.length < 8) {
+            showFormError(errorEl, errorMsg, 'La contraseña debe tener al menos 8 caracteres.');
+            return;
+        }
+
+        errorEl.hidden = true;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Guardando...';
+
+        try {
+            await AuthAPI.changePassword(currentPw, newPw);
+            showToast('Contraseña cambiada correctamente.', 'success');
+            form.reset();
+        } catch (error) {
+            showFormError(errorEl, errorMsg, error.message || 'No se pudo cambiar la contraseña.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Cambiar contraseña';
+        }
+    });
+}
+
+function initPriceForm() {
+    const form = document.getElementById('priceForm');
+    if (!form || form.dataset.initialized) return;
+    form.dataset.initialized = 'true';
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const basePrice   = document.getElementById('basePrice').value;
+        const cleaningFee = document.getElementById('cleaningFee').value;
+
+        localStorage.setItem('pometes_base_price',   basePrice);
+        localStorage.setItem('pometes_cleaning_fee', cleaningFee);
+
+        showToast('Precios guardados correctamente.', 'success');
+    });
+}
+
+function initApiCheck() {
+    const btn = document.getElementById('checkApiBtn');
+    if (!btn || btn.dataset.initialized) return;
+    btn.dataset.initialized = 'true';
+
+    btn.addEventListener('click', checkApiStatus);
+    checkApiStatus(); // verificar al entrar
+}
+
+async function checkApiStatus() {
+    const statusEl = document.getElementById('apiStatus');
+    if (!statusEl) return;
+
+    statusEl.innerHTML = '<span class="status-dot status-dot-checking"></span> Verificando...';
+
+    try {
+        const result = await AuthAPI.ping();
+        if (result !== null) {
+            statusEl.innerHTML = '<span class="status-dot status-dot-ok"></span> Conectado';
+        } else {
+            statusEl.innerHTML = '<span class="status-dot status-dot-error"></span> Sin respuesta';
+        }
+    } catch {
+        statusEl.innerHTML = '<span class="status-dot status-dot-error"></span> Error de conexión';
+    }
+}
+
+function showLastAccess() {
+    const el   = document.getElementById('lastAccess');
+    const raw  = localStorage.getItem('pometes_last_access');
+    if (!el) return;
+
+    if (raw) {
+        el.textContent = new Date(raw).toLocaleString('es-ES', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    } else {
+        el.textContent = 'Primera sesión';
+    }
+}
+
+function showFormError(errorEl, msgEl, msg) {
+    msgEl.textContent = msg;
+    errorEl.hidden = false;
+}
+
+/* =========================================================
+   MODAL DE DETALLE DE RESERVA
+   ========================================================= */
+
+/**
+ * Abre el modal con el detalle de una reserva.
+ * Primero busca en el estado local; si no está, llama a la API.
+ */
+async function openBookingModal(id) {
+    const overlay = document.getElementById('bookingModalOverlay');
+    const body    = document.getElementById('modalBody');
+    const footer  = document.getElementById('modalFooter');
+    const title   = document.getElementById('modalTitle');
+
+    // Mostrar modal vacío con loading
+    title.textContent   = 'Cargando reserva...';
+    body.innerHTML      = '<div style="text-align:center;padding:40px"><div class="loading-spinner" style="margin:0 auto"></div></div>';
+    footer.innerHTML    = '';
+    overlay.hidden      = false;
+
+    try {
+        // Intentar obtener de la caché local primero
+        let booking = AppState.bookings.find(function (b) { return String(b.id) === String(id); });
+
+        // Si no está en caché, consultar la API
+        if (!booking) {
+            const data = await BookingsAPI.getById(id);
+            booking = data.booking || data;
+        }
+
+        renderBookingModal(booking);
+
+    } catch (error) {
+        body.innerHTML = `<div class="empty-state"><p>No se pudo cargar la reserva: ${escapeHtml(error.message)}</p></div>`;
+        footer.innerHTML = '<button class="btn btn-ghost" id="modalClose2">Cerrar</button>';
+        document.getElementById('modalClose2').addEventListener('click', closeBookingModal);
+    }
+}
+
+/** Renderiza el contenido del modal con los datos de la reserva */
+function renderBookingModal(booking) {
+    const body   = document.getElementById('modalBody');
+    const footer = document.getElementById('modalFooter');
+    const title  = document.getElementById('modalTitle');
+
+    const name     = booking.guestName  || booking.guest_name  || 'Sin nombre';
+    const email    = booking.guestEmail || booking.guest_email || '—';
+    const phone    = booking.guestPhone || booking.guest_phone || '—';
+    const checkIn  = formatDate(booking.checkIn  || booking.check_in);
+    const checkOut = formatDate(booking.checkOut || booking.check_out);
+    const nights   = booking.nights || calcNights(booking.checkIn || booking.check_in, booking.checkOut || booking.check_out);
+    const guests   = booking.guests || booking.numGuests || booking.num_guests || '—';
+    const price    = formatCurrency(booking.totalPrice || booking.total_price || 0);
+    const notes    = booking.notes || '';
+    const source   = renderSource(booking.source);
+    const createdAt= booking.createdAt || booking.created_at
+        ? new Date(booking.createdAt || booking.created_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—';
+
+    title.textContent = `Reserva #${booking.id}`;
+
+    body.innerHTML = `
+        <div class="booking-detail-grid">
+            <!-- Datos del huésped -->
+            <div class="booking-detail-section">
+                <h3>👤 Huésped</h3>
+                <div class="detail-field">
+                    <label>Nombre</label>
+                    <span>${escapeHtml(name)}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Email</label>
+                    <span><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></span>
+                </div>
+                <div class="detail-field">
+                    <label>Teléfono</label>
+                    <span><a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a></span>
+                </div>
+                <div class="detail-field">
+                    <label>Huéspedes</label>
+                    <span>${guests}</span>
+                </div>
+            </div>
+
+            <!-- Detalles de la estancia -->
+            <div class="booking-detail-section">
+                <h3>🗓️ Estancia</h3>
+                <div class="detail-field">
+                    <label>Check-in</label>
+                    <span>${checkIn}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Check-out</label>
+                    <span>${checkOut}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Noches</label>
+                    <span>${nights}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Precio total</label>
+                    <span style="font-size:18px;font-weight:700;color:var(--text)">${price}</span>
+                </div>
+            </div>
+
+            <!-- Estado y origen -->
+            <div class="booking-detail-section">
+                <h3>📊 Estado</h3>
+                <div class="detail-field">
+                    <label>Estado actual</label>
+                    <span>${renderBadge(booking.status)}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Origen</label>
+                    <span>${source}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Fecha de solicitud</label>
+                    <span>${createdAt}</span>
+                </div>
+                <div class="detail-field">
+                    <label>ID reserva</label>
+                    <span style="font-family:monospace;font-size:13px">#${booking.id}</span>
+                </div>
+            </div>
+
+            <!-- Notas -->
+            <div class="booking-detail-section">
+                <h3>📝 Notas</h3>
+                <div class="booking-notes-box ${!notes ? 'booking-notes-empty' : ''}">
+                    ${notes ? escapeHtml(notes) : 'Sin notas adicionales'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Botones de acción según el estado
+    footer.innerHTML = '';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className   = 'btn btn-ghost';
+    closeBtn.textContent = 'Cerrar';
+    closeBtn.addEventListener('click', closeBookingModal);
+    footer.appendChild(closeBtn);
+
+    if (booking.status === 'pending') {
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className   = 'btn btn-success';
+        confirmBtn.innerHTML   = '✅ Confirmar reserva';
+        confirmBtn.addEventListener('click', function () {
+            closeBookingModal();
+            confirmBooking(booking.id);
+        });
+        footer.appendChild(confirmBtn);
+    }
+
+    if (booking.status !== 'cancelled') {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className   = 'btn btn-danger';
+        cancelBtn.innerHTML   = '❌ Cancelar reserva';
+        cancelBtn.addEventListener('click', function () {
+            closeBookingModal();
+            cancelBooking(booking.id);
+        });
+        footer.appendChild(cancelBtn);
+    }
+}
+
+function closeBookingModal() {
+    document.getElementById('bookingModalOverlay').hidden = true;
+}
+
+// Cerrar modal al hacer click fuera
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('bookingModalOverlay').addEventListener('click', function (e) {
+        if (e.target === this) closeBookingModal();
+    });
+
+    document.getElementById('modalClose').addEventListener('click', closeBookingModal);
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            if (!document.getElementById('bookingModalOverlay').hidden) closeBookingModal();
+            if (!document.getElementById('confirmOverlay').hidden) closeConfirm();
+        }
+    });
+});
+
+/* =========================================================
+   TOAST NOTIFICATIONS
+   ========================================================= */
+
+/**
+ * Muestra una notificación temporal.
+ * @param {string} message  - Texto del mensaje
+ * @param {'success'|'error'|'info'|'warning'} type
+ * @param {number} [duration=3000] - Milisegundos hasta auto-cerrar
+ */
+function showToast(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('toastContainer');
+    const toast     = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span class="toast-icon"></span><span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+
+    // Auto-cerrar después del tiempo indicado
+    setTimeout(function () {
+        toast.classList.add('exiting');
+        toast.addEventListener('animationend', function () { toast.remove(); }, { once: true });
+    }, duration);
+}
+
+/* =========================================================
+   DIÁLOGO DE CONFIRMACIÓN
+   ========================================================= */
+
+let _confirmCallback = null;
+
+/**
+ * Muestra un diálogo de confirmación personalizable.
+ * @param {object} opts
+ * @param {string}   opts.icon
+ * @param {string}   opts.title
+ * @param {string}   opts.message
+ * @param {string}   [opts.acceptText='Aceptar']
+ * @param {string}   [opts.acceptClass='btn-danger']
+ * @param {Function} opts.onAccept
+ */
+function showConfirm(opts) {
+    document.getElementById('confirmIcon').textContent    = opts.icon    || '❓';
+    document.getElementById('confirmTitle').textContent   = opts.title   || '¿Estás seguro?';
+    document.getElementById('confirmMessage').textContent = opts.message || '';
+
+    const acceptBtn = document.getElementById('confirmAccept');
+    acceptBtn.textContent = opts.acceptText  || 'Aceptar';
+    acceptBtn.className   = `btn ${opts.acceptClass || 'btn-danger'}`;
+
+    _confirmCallback = opts.onAccept || null;
+
+    document.getElementById('confirmOverlay').hidden = false;
+}
+
+function closeConfirm() {
+    document.getElementById('confirmOverlay').hidden = true;
+    _confirmCallback = null;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
+
+    document.getElementById('confirmAccept').addEventListener('click', function () {
+        closeConfirm();
+        if (typeof _confirmCallback === 'function') _confirmCallback();
+    });
+
+    // Cerrar al hacer click fuera
+    document.getElementById('confirmOverlay').addEventListener('click', function (e) {
+        if (e.target === this) closeConfirm();
+    });
+});
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+/** Formatea una fecha ISO a dd/mm/aaaa */
+function formatDate(isoString) {
+    if (!isoString) return '—';
+    const [y, m, d] = isoString.split('T')[0].split('-');
+    return `${d}/${m}/${y}`;
+}
+
+/** Devuelve la fecha en formato yyyy-mm-dd */
+function formatDateISO(date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/** Formatea un número como moneda EUR */
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(amount);
+}
+
+/** Rellena con cero a la izquierda */
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+/** Calcula las noches entre dos fechas ISO */
+function calcNights(checkIn, checkOut) {
+    if (!checkIn || !checkOut) return '—';
+    const diff = new Date(checkOut) - new Date(checkIn);
+    return Math.round(diff / 86400000);
+}
+
+/** Obtiene las iniciales de un nombre */
+function getInitials(name) {
+    return (name || '?').split(' ').slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase();
+}
+
+/** Escapa HTML para evitar XSS */
+function escapeHtml(str) {
+    if (!str && str !== 0) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/** Genera el HTML de un badge de estado */
+function renderBadge(status) {
+    const map = {
+        pending:   ['badge-pending',   'Pendiente'],
+        confirmed: ['badge-confirmed', 'Confirmada'],
+        cancelled: ['badge-cancelled', 'Cancelada']
+    };
+    const [cls, label] = map[status] || ['badge-pending', status || '—'];
+    return `<span class="badge ${cls}">${label}</span>`;
+}
+
+/** Genera el HTML del origen con icono */
+function renderSource(source) {
+    const map = {
+        direct:  '🌐 Web directa',
+        airbnb:  '🏠 Airbnb',
+        booking: '📱 Booking'
+    };
+    return `<span class="source-badge">${map[source] || source || '—'}</span>`;
+}
+
+/** Muestra/oculta el loading global */
+function setGlobalLoading(visible) {
+    document.getElementById('loadingOverlay').hidden = !visible;
+}
