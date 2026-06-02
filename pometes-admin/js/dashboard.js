@@ -888,8 +888,10 @@ function initConfirmBindings() {
     document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
 
     document.getElementById('confirmAccept').addEventListener('click', function () {
+        // Capturar la referencia ANTES de que closeConfirm la anule
+        const cb = _confirmCallback;
         closeConfirm();
-        if (typeof _confirmCallback === 'function') _confirmCallback();
+        if (typeof cb === 'function') cb();
     });
 
     // Cerrar al hacer click fuera del diálogo
