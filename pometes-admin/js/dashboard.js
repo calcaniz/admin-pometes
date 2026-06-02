@@ -121,6 +121,7 @@ function navigateTo(sectionName) {
         'blocked-dates':'Bloqueos de fechas',
         'pricing-rules':'Precios por temporada',
         analytics:      'Analíticas',
+        channels:       'Canales externos',
         settings:       'Configuración'
     };
     document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
@@ -133,6 +134,7 @@ function navigateTo(sectionName) {
         case 'blocked-dates':  initBlockedDatesSection();   break;
         case 'pricing-rules':  initPricingRulesSection();   break;
         case 'analytics':      initAnalyticsSection();      break;
+        case 'channels':       initChannelsSection();       break;
         case 'settings':       initSettingsSection();       break;
     }
 }
@@ -301,10 +303,11 @@ function updatePendingBadge() {
 
 // Estado del calendario
 const CalState = {
-    year:        new Date().getFullYear(),
-    month:       new Date().getMonth() + 1, // 1-based
-    bookedDates: [],
-    selectedDay: null
+    year:          new Date().getFullYear(),
+    month:         new Date().getMonth() + 1, // 1-based
+    bookedDates:   [],   // fechas ocupadas (reservas + bloqueos combinados)
+    blockedRanges: [],   // bloqueos manuales { date_from, date_to }
+    selectedDay:   null
 };
 
 function initCalendarSection() {
@@ -346,18 +349,27 @@ async function loadCalendar() {
     updateCalendarTitle();
     renderCalendarSkeleton();
 
-    console.log('[calendar] Llamando a GET /api/availability?year=' + CalState.year + '&month=' + CalState.month);
     try {
-        const data = await CalendarAPI.getAvailability(CalState.year, CalState.month);
-        console.log('[calendar] Fechas ocupadas:', data);
-        CalState.bookedDates = data.bookedDates || [];
+        const [availData, blocksData] = await Promise.all([
+            CalendarAPI.getAvailability(CalState.year, CalState.month),
+            BlockedDatesAPI.getAll().catch(() => [])
+        ]);
+        CalState.bookedDates   = availData.bookedDates || [];
+        CalState.blockedRanges = Array.isArray(blocksData) ? blocksData : [];
     } catch (error) {
         console.error('[calendar] Error al cargar disponibilidad:', error);
         showToast('No se pudo cargar la disponibilidad: ' + error.message, 'error');
-        CalState.bookedDates = [];
+        CalState.bookedDates   = [];
+        CalState.blockedRanges = [];
     }
 
     renderCalendar();
+}
+
+function isManualBlock(dateStr) {
+    return CalState.blockedRanges.some(function (r) {
+        return dateStr >= r.date_from && dateStr <= r.date_to;
+    });
 }
 
 function updateCalendarTitle() {
@@ -402,10 +414,12 @@ function renderCalendar() {
         const isToday  = dateStr === todayStr;
         const isBooked = CalState.bookedDates.includes(dateStr);
 
+        const isBlock  = isBooked && isManualBlock(dateStr);
         let classes = 'cal-day';
-        if (isToday)  classes += ' today';
-        if (isBooked) classes += ' occupied';
-        else if (!isToday) classes += ' free';
+        if (isToday)        classes += ' today';
+        if (isBooked && !isBlock) classes += ' occupied';
+        else if (isBlock)   classes += ' blocked';
+        else if (!isToday)  classes += ' free';
         if (CalState.selectedDay === dateStr) classes += ' selected';
 
         html += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
@@ -413,8 +427,8 @@ function renderCalendar() {
 
     grid.innerHTML = html;
 
-    // Registrar clicks en días ocupados
-    grid.querySelectorAll('.cal-day.occupied').forEach(function (cell) {
+    // Registrar clicks en días ocupados y bloqueados
+    grid.querySelectorAll('.cal-day.occupied, .cal-day.blocked').forEach(function (cell) {
         cell.addEventListener('click', function () {
             const date = this.dataset.date;
             CalState.selectedDay = date;
@@ -445,6 +459,24 @@ function showCalendarDayInfo(dateStr) {
     const dateFormatted = new Date(dateStr + 'T00:00:00').toLocaleDateString('es-ES', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
+
+    // Comprobar si es un bloqueo manual
+    const block = CalState.blockedRanges.find(function (r) {
+        return dateStr >= r.date_from && dateStr <= r.date_to;
+    });
+
+    if (!booking && block) {
+        content.innerHTML = `
+            <div class="day-info-title">🚫 ${dateFormatted}</div>
+            <div class="day-info-fields">
+                <div class="day-info-field"><label>Tipo</label><span>Bloqueo manual</span></div>
+                <div class="day-info-field"><label>Desde</label><span>${formatDate(block.date_from)}</span></div>
+                <div class="day-info-field"><label>Hasta</label><span>${formatDate(block.date_to)}</span></div>
+                <div class="day-info-field"><label>Motivo</label><span>${escapeHtml(block.reason || 'Sin motivo')}</span></div>
+            </div>`;
+        infoEl.hidden = false;
+        return;
+    }
 
     if (!booking) {
         content.innerHTML = `
@@ -681,6 +713,142 @@ function showLastAccess() {
 function showFormError(errorEl, msgEl, msg) {
     msgEl.textContent = msg;
     errorEl.hidden = false;
+}
+
+/* =========================================================
+   SECCIÓN: CANALES EXTERNOS
+   ========================================================= */
+
+const ChannelsState = { items: [], initialized: false };
+
+function initChannelsSection() {
+    if (ChannelsState.initialized) { renderChannelsList(); return; }
+    ChannelsState.initialized = true;
+
+    const form = document.getElementById('channelForm');
+    if (form) form.addEventListener('submit', handleChannelSubmit);
+
+    loadChannels();
+}
+
+async function loadChannels() {
+    try {
+        const data = await apiFetch('/channels');
+        ChannelsState.items = Array.isArray(data) ? data : [];
+        renderChannelsList();
+    } catch (err) {
+        showToast('No se pudieron cargar los canales: ' + err.message, 'error');
+    }
+}
+
+function renderChannelsList() {
+    const el = document.getElementById('channelsList');
+    if (!el) return;
+
+    if (ChannelsState.items.length === 0) {
+        el.innerHTML = '<div class="ch-empty"><div style="font-size:32px;margin-bottom:8px">🔗</div><p>No hay canales configurados todavía.</p></div>';
+        return;
+    }
+
+    const PLATFORM_LABELS = { airbnb: '🏠 Airbnb', booking: '📱 Booking.com', holidu: '🏡 Holidu' };
+
+    el.innerHTML = ChannelsState.items.map(function (ch) {
+        const label     = PLATFORM_LABELS[ch.platform] || ch.platform;
+        const syncText  = ch.last_synced_at
+            ? 'Última sync: ' + new Date(ch.last_synced_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+            : 'Nunca sincronizado';
+        const statusCls = ch.sync_error ? 'ch-status-error' : (ch.last_synced_at ? 'ch-status-ok' : 'ch-status-pending');
+        const statusTxt = ch.sync_error ? '⚠️ Error' : (ch.last_synced_at ? '✅ OK' : '⏳ Pendiente');
+
+        return `
+            <div class="ch-item">
+                <div class="ch-item-left">
+                    <div class="ch-platform">${label}</div>
+                    <div class="ch-sync-info">${syncText}</div>
+                    ${ch.sync_error ? `<div class="ch-error-msg">${escapeHtml(ch.sync_error)}</div>` : ''}
+                </div>
+                <div class="ch-item-right">
+                    <span class="ch-status ${statusCls}">${statusTxt}</span>
+                    <label class="ch-toggle" title="${ch.enabled ? 'Desactivar' : 'Activar'}">
+                        <input type="checkbox" class="ch-enabled-cb" data-id="${ch.id}"
+                               ${ch.enabled ? 'checked' : ''}>
+                        <span class="ch-toggle-slider"></span>
+                    </label>
+                    <button class="btn btn-ghost btn-sm ch-delete-btn" data-id="${ch.id}" title="Eliminar">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>`;
+    }).join('');
+
+    el.querySelectorAll('.ch-enabled-cb').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            updateChannelEnabled(this.dataset.id, this.checked);
+        });
+    });
+
+    el.querySelectorAll('.ch-delete-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const id = this.dataset.id;
+            const ch = ChannelsState.items.find(function (c) { return String(c.id) === String(id); });
+            showConfirm({
+                icon: '🔗', title: '¿Eliminar canal?',
+                message: ch ? `Se eliminará la integración con ${ch.platform}.` : '',
+                acceptText: 'Eliminar', acceptClass: 'btn-danger',
+                onAccept: function () { deleteChannel(id); }
+            });
+        });
+    });
+}
+
+async function handleChannelSubmit(e) {
+    e.preventDefault();
+    const platform = document.getElementById('chPlatform').value;
+    const url      = document.getElementById('chIcalUrl').value.trim();
+    const btn      = document.getElementById('chSubmitBtn');
+    const errEl    = document.getElementById('chFormError');
+    const msgEl    = document.getElementById('chFormErrorMsg');
+
+    if (errEl) errEl.hidden = true;
+    if (!platform) { if (errEl && msgEl) { msgEl.textContent = 'Selecciona una plataforma.'; errEl.hidden = false; } return; }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const created = await apiFetch('/channels', { method: 'POST', body: JSON.stringify({ platform, ical_import_url: url || null }) });
+        ChannelsState.items.push(created);
+        renderChannelsList();
+        e.target.reset();
+        showToast('Canal añadido correctamente', 'success');
+    } catch (err) {
+        if (errEl && msgEl) { msgEl.textContent = err.message || 'No se pudo guardar.'; errEl.hidden = false; }
+    } finally {
+        btn.disabled = false; btn.textContent = 'Añadir canal';
+    }
+}
+
+async function updateChannelEnabled(id, enabled) {
+    const ch = ChannelsState.items.find(function (c) { return String(c.id) === String(id); });
+    try {
+        await apiFetch(`/channels/${id}`, { method: 'PUT', body: JSON.stringify({ enabled, ical_import_url: ch?.ical_import_url }) });
+        if (ch) ch.enabled = enabled;
+        showToast(`Canal ${enabled ? 'activado' : 'desactivado'}`, 'success');
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+        renderChannelsList(); // revertir toggle
+    }
+}
+
+async function deleteChannel(id) {
+    try {
+        await apiFetch(`/channels/${id}`, { method: 'DELETE' });
+        ChannelsState.items = ChannelsState.items.filter(function (c) { return String(c.id) !== String(id); });
+        renderChannelsList();
+        showToast('Canal eliminado', 'success');
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
 }
 
 /* =========================================================

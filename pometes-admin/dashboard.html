@@ -99,6 +99,10 @@
                 <span class="nav-icon">💰</span>
                 <span class="nav-label">Precios</span>
             </a>
+            <a href="#" class="nav-item" data-section="channels">
+                <span class="nav-icon">🔗</span>
+                <span class="nav-label">Canales</span>
+            </a>
             <a href="#" class="nav-item" data-section="analytics">
                 <span class="nav-icon">📊</span>
                 <span class="nav-label">Analíticas</span>
@@ -316,7 +320,10 @@
                     <!-- Leyenda -->
                     <div class="calendar-legend">
                         <span class="legend-item">
-                            <span class="legend-dot legend-occupied"></span> Ocupado
+                            <span class="legend-dot legend-occupied"></span> Reserva
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot legend-blocked"></span> Bloqueado
                         </span>
                         <span class="legend-item">
                             <span class="legend-dot legend-today"></span> Hoy
@@ -456,6 +463,66 @@
                     </form>
                 </div>
 
+            </section>
+
+            <!-- ════════════════════════════════
+                 SECCIÓN: CANALES EXTERNOS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="channels">
+
+                <!-- Lista de canales configurados -->
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header">
+                        <h2 class="card-title">Canales configurados</h2>
+                    </div>
+                    <div id="channelsList">
+                        <div class="ch-empty">Cargando...</div>
+                    </div>
+                </div>
+
+                <div class="settings-grid">
+
+                    <!-- Formulario añadir canal -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">➕ Añadir canal</h2>
+                        </div>
+                        <form id="channelForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="chPlatform">Plataforma</label>
+                                <select id="chPlatform" required>
+                                    <option value="">Selecciona...</option>
+                                    <option value="airbnb">🏠 Airbnb</option>
+                                    <option value="booking">📱 Booking.com</option>
+                                    <option value="holidu">🏡 Holidu</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="chIcalUrl">URL iCal de importación <span style="color:var(--text-light);font-weight:400">(opcional)</span></label>
+                                <input type="url" id="chIcalUrl" placeholder="https://www.airbnb.es/calendar/ical/...">
+                                <small class="form-hint">URL del calendario de la plataforma para importar reservas externas.</small>
+                            </div>
+                            <div id="chFormError" class="login-error" hidden>
+                                <span id="chFormErrorMsg"></span>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="chSubmitBtn">Añadir canal</button>
+                        </form>
+                    </div>
+
+                    <!-- Info iCal -->
+                    <div class="card" style="align-self:start">
+                        <div class="card-header">
+                            <h2 class="card-title">ℹ️ ¿Cómo obtener la URL iCal?</h2>
+                        </div>
+                        <div style="padding:16px 24px 24px;font-size:14px;color:var(--text-mid);line-height:1.7">
+                            <p style="margin:0 0 12px"><strong style="color:var(--text)">Airbnb:</strong><br>
+                            Anuncios → Disponibilidad → Sincronizar calendarios → Exportar calendario</p>
+                            <p style="margin:0"><strong style="color:var(--text)">Booking.com:</strong><br>
+                            Extranet → Calendario → Sincronización de calendarios → iCal → Exportar</p>
+                        </div>
+                    </div>
+
+                </div>
             </section>
 
             <!-- ════════════════════════════════
