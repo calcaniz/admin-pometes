@@ -17,7 +17,10 @@ const API_BASE = 'https://casaruralpometes.es/api';
  * @throws {Error}            - Con propiedad `status` cuando la API devuelve un error
  */
 async function apiFetch(endpoint, options = {}) {
-    const token = getToken();
+    const token  = getToken();
+    const method = options.method || 'GET';
+
+    console.log(`[api] ${method} ${API_BASE}${endpoint}`);
 
     const headers = {
         'Content-Type': 'application/json',
@@ -27,6 +30,8 @@ async function apiFetch(endpoint, options = {}) {
     // Añadir Authorization si hay token
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+    } else {
+        console.warn('[api] No hay token — la petición se enviará sin Authorization');
     }
 
     let response;
@@ -37,14 +42,18 @@ async function apiFetch(endpoint, options = {}) {
         });
     } catch (networkError) {
         // Error de red (sin conexión, CORS, timeout…)
+        console.error('[api] Error de red:', networkError);
         const err = new Error('No se pudo conectar con la API. Verifica tu conexión.');
         err.status = 0;
         err.networkError = true;
         throw err;
     }
 
+    console.log(`[api] Respuesta ${response.status} para ${method} ${endpoint}`);
+
     // Token expirado o no válido → cierre de sesión automático
     if (response.status === 401) {
+        console.warn('[api] 401 recibido — cerrando sesión');
         logout();
         return;
     }

@@ -8,20 +8,27 @@
 // ── Estado global compartido ──
 const AppState = {
     bookings: [],          // todas las reservas cargadas en memoria
-    currentSection: 'home'
+    currentSection: null   // null para que navigateTo('home') no se bloquee por el guard
 };
 
 // ── Inicialización cuando el DOM está listo ──
+// Un único listener centraliza todos los bindings de eventos del dashboard
 document.addEventListener('DOMContentLoaded', function () {
-    // Verificar sesión: redirige si no hay token
+    console.log('[dashboard] DOMContentLoaded — iniciando panel');
+
+    // Verificar sesión: redirige a login si no hay token
     requireAuth();
+    console.log('[auth] Token presente:', !!getToken());
 
     initSidebar();
     initNavigation();
     initHeader();
     initLogout();
+    initModalBindings();
+    initConfirmBindings();
 
     // Cargar la sección inicial (Inicio)
+    console.log('[dashboard] Navegando a sección inicial: home');
     navigateTo('home');
 });
 
@@ -89,7 +96,10 @@ function initNavigation() {
 
 /** Navega a la sección indicada y carga sus datos */
 function navigateTo(sectionName) {
-    if (AppState.currentSection === sectionName) return;
+    // Guard: evitar recargar la sección que ya está activa (solo si ya se inicializó)
+    if (AppState.currentSection !== null && AppState.currentSection === sectionName) return;
+
+    console.log('[nav] Navegando de', AppState.currentSection, '→', sectionName);
 
     AppState.currentSection = sectionName;
 
@@ -164,23 +174,29 @@ function initLogout() {
    ========================================================= */
 
 async function loadHomeSection() {
-    // Si ya tenemos reservas en memoria, calcular métricas directamente
+    // Si ya tenemos reservas en memoria, recalcular métricas sin llamar a la API
     if (AppState.bookings.length > 0) {
+        console.log('[home] Usando caché local:', AppState.bookings.length, 'reservas');
         renderMetrics(AppState.bookings);
         renderRecentBookings(AppState.bookings);
         return;
     }
 
+    console.log('[home] Llamando a GET /api/bookings...');
     try {
         const data = await BookingsAPI.getAll();
+        console.log('[home] Respuesta de API /bookings:', data);
+
         // La API puede devolver { bookings: [] } o directamente []
         AppState.bookings = Array.isArray(data) ? data : (data.bookings || []);
+        console.log('[home] Reservas cargadas:', AppState.bookings.length);
 
         renderMetrics(AppState.bookings);
         renderRecentBookings(AppState.bookings);
         updatePendingBadge();
 
     } catch (error) {
+        console.error('[home] Error al cargar reservas:', error);
         showToast('No se pudieron cargar las reservas: ' + error.message, 'error');
         renderMetrics([]);
         renderRecentBookings([]);
@@ -324,10 +340,13 @@ async function loadCalendar() {
     updateCalendarTitle();
     renderCalendarSkeleton();
 
+    console.log('[calendar] Llamando a GET /api/availability?year=' + CalState.year + '&month=' + CalState.month);
     try {
         const data = await CalendarAPI.getAvailability(CalState.year, CalState.month);
+        console.log('[calendar] Fechas ocupadas:', data);
         CalState.bookedDates = data.bookedDates || [];
     } catch (error) {
+        console.error('[calendar] Error al cargar disponibilidad:', error);
         showToast('No se pudo cargar la disponibilidad: ' + error.message, 'error');
         CalState.bookedDates = [];
     }
@@ -476,15 +495,16 @@ function showCalendarDayInfo(dateStr) {
    ========================================================= */
 
 function initSettingsSection() {
+    // Guard: si ya existe el marcador, la sección ya está inicializada
     if (document.getElementById('settingsInitialized')) return;
-    document.getElementById('basePrice') && (document.getElementById('settingsInitialized').hidden = false);
 
-    // Evitar reinicializar
+    // Crear el marcador PRIMERO, antes de cualquier otra operación
     const marker = document.createElement('span');
     marker.id = 'settingsInitialized';
     marker.hidden = true;
     document.querySelector('[data-section="settings"]').appendChild(marker);
 
+    console.log('[settings] Inicializando sección de configuración');
     loadStoredPrices();
     initPasswordForm();
     initPriceForm();
@@ -787,22 +807,22 @@ function closeBookingModal() {
     document.getElementById('bookingModalOverlay').hidden = true;
 }
 
-// Cerrar modal al hacer click fuera
-document.addEventListener('DOMContentLoaded', function () {
+/** Registra los eventos del modal de reserva — llamado desde el DOMContentLoaded central */
+function initModalBindings() {
     document.getElementById('bookingModalOverlay').addEventListener('click', function (e) {
         if (e.target === this) closeBookingModal();
     });
 
     document.getElementById('modalClose').addEventListener('click', closeBookingModal);
 
-    // Cerrar con Escape
+    // Cerrar modales y confirmaciones con la tecla Escape
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             if (!document.getElementById('bookingModalOverlay').hidden) closeBookingModal();
             if (!document.getElementById('confirmOverlay').hidden) closeConfirm();
         }
     });
-});
+}
 
 /* =========================================================
    TOAST NOTIFICATIONS
@@ -863,7 +883,8 @@ function closeConfirm() {
     _confirmCallback = null;
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+/** Registra los eventos del diálogo de confirmación — llamado desde el DOMContentLoaded central */
+function initConfirmBindings() {
     document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
 
     document.getElementById('confirmAccept').addEventListener('click', function () {
@@ -871,11 +892,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof _confirmCallback === 'function') _confirmCallback();
     });
 
-    // Cerrar al hacer click fuera
+    // Cerrar al hacer click fuera del diálogo
     document.getElementById('confirmOverlay').addEventListener('click', function (e) {
         if (e.target === this) closeConfirm();
     });
-});
+}
 
 /* =========================================================
    UTILIDADES
