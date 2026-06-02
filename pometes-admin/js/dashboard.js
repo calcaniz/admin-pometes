@@ -120,6 +120,7 @@ function navigateTo(sectionName) {
         calendar:       'Calendario',
         'blocked-dates':'Bloqueos de fechas',
         'pricing-rules':'Precios por temporada',
+        services:       'Servicios extra',
         analytics:      'Analíticas',
         channels:       'Canales externos',
         settings:       'Configuración'
@@ -133,6 +134,7 @@ function navigateTo(sectionName) {
         case 'calendar':       initCalendarSection();       break;
         case 'blocked-dates':  initBlockedDatesSection();   break;
         case 'pricing-rules':  initPricingRulesSection();   break;
+        case 'services':       initServicesSection();        break;
         case 'analytics':      initAnalyticsSection();      break;
         case 'channels':       initChannelsSection();       break;
         case 'settings':       initSettingsSection();       break;
@@ -990,6 +992,51 @@ function renderBookingModal(booking) {
         </div>
     `;
 
+    // Servicios de la reserva
+    const services = booking.services || [];
+    if (services.length > 0) {
+        body.innerHTML += `
+            <div class="booking-detail-section" style="grid-column:1/-1">
+                <h3>🛎️ Servicios</h3>
+                ${services.map(function (s) {
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;
+                                        padding:6px 0;border-bottom:1px solid var(--border);font-size:14px">
+                        <span>${escapeHtml(s.name)} ${s.mandatory ? '<span class="badge badge-pending" style="font-size:10px">obligatorio</span>' : ''}</span>
+                        <strong>${parseFloat(s.price) > 0 ? formatCurrency(s.price) : 'Incluido'}</strong>
+                    </div>`;
+                }).join('')}
+            </div>`;
+    }
+
+    // Fianza
+    const depositAmount = booking.deposit_amount;
+    const depositStatus = booking.deposit_status;
+    if (depositAmount) {
+        const depositLabels = { pending: '⏳ Pendiente', paid: '✅ Cobrada', returned: '↩️ Devuelta', retained: '⚠️ Retenida' };
+        const depositColors = { pending: '#FEF9EC', paid: '#D1F2E0', returned: '#EBF4FB', retained: '#FCE4E4' };
+        body.innerHTML += `
+            <div class="booking-detail-section" id="depositSection">
+                <h3>💰 Fianza</h3>
+                <div class="detail-field">
+                    <label>Importe requerido</label>
+                    <span style="font-size:18px;font-weight:700">${formatCurrency(depositAmount)}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Estado</label>
+                    <span id="depositStatusBadge" style="background:${depositColors[depositStatus] || '#f9f6f0'};
+                           padding:4px 10px;border-radius:10px;font-weight:600;font-size:13px">
+                        ${depositLabels[depositStatus] || '—'}
+                    </span>
+                </div>
+                ${booking.deposit_notes ? `<div class="detail-field"><label>Notas</label><span>${escapeHtml(booking.deposit_notes)}</span></div>` : ''}
+                <div id="depositActionBtns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    ${depositStatus === 'pending' ? `<button class="btn btn-success btn-sm" onclick="updateDeposit(${booking.id},'paid')">✅ Marcar cobrada</button>` : ''}
+                    ${depositStatus === 'paid'    ? `<button class="btn btn-ghost btn-sm" onclick="updateDeposit(${booking.id},'returned')">↩️ Devolver</button>
+                                                    <button class="btn btn-danger btn-sm" onclick="promptRetainDeposit(${booking.id})">⚠️ Retener</button>` : ''}
+                </div>
+            </div>`;
+    }
+
     // Motivo de cancelación (si aplica)
     if (booking.status === 'cancelled' && (booking.cancellation_reason)) {
         body.innerHTML += `
@@ -1005,6 +1052,19 @@ function renderBookingModal(booking) {
     if (checkInRaw && checkOutRaw) {
         loadModalPricingBreakdown(checkInRaw, checkOutRaw);
     }
+
+    // Notas del administrador
+    const adminNotes = booking.admin_notes || '';
+    body.querySelector('.booking-detail-grid')?.insertAdjacentHTML('beforeend', `
+        <div class="booking-detail-section" style="grid-column:1/-1">
+            <h3>🗒️ Notas del administrador <span style="font-weight:400;color:var(--text-light)">(solo visibles aquí)</span></h3>
+            <textarea id="adminNotesInput" rows="3" placeholder="Añade notas internas sobre esta reserva…"
+                      style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:6px;
+                             font-size:14px;resize:vertical;font-family:inherit">${escapeHtml(adminNotes)}</textarea>
+            <button class="btn btn-ghost btn-sm" onclick="saveAdminNotes(${booking.id})" style="margin-top:8px">
+                💾 Guardar notas
+            </button>
+        </div>`);
 
     // Cargar historial de emails de forma asíncrona
     loadEmailHistory(booking.id);
@@ -1169,6 +1229,53 @@ function renderPricingBreakdownHtml(pricing) {
 
 function closeBookingModal() {
     document.getElementById('bookingModalOverlay').hidden = true;
+}
+
+async function saveAdminNotes(bookingId) {
+    const textarea = document.getElementById('adminNotesInput');
+    if (!textarea) return;
+    try {
+        await apiFetch(`/bookings/${bookingId}/notes`, {
+            method: 'PUT',
+            body: JSON.stringify({ admin_notes: textarea.value })
+        });
+        updateBookingInState(bookingId, { admin_notes: textarea.value });
+        showToast('Notas guardadas correctamente', 'success');
+    } catch (err) {
+        showToast('Error al guardar notas: ' + err.message, 'error');
+    }
+}
+
+async function updateDeposit(bookingId, status, notes) {
+    try {
+        await apiFetch(`/bookings/${bookingId}/deposit`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, notes: notes || undefined })
+        });
+        updateBookingInState(bookingId, { deposit_status: status, deposit_notes: notes || null });
+        showToast(`Fianza marcada como: ${status}`, 'success');
+        openBookingModal(bookingId); // recargar modal
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+function promptRetainDeposit(bookingId) {
+    showConfirm({
+        icon: '⚠️',
+        title: 'Retener fianza',
+        message: '¿Deseas retener la fianza? Indica el motivo:',
+        extra: `<div style="margin-top:12px">
+                  <textarea id="retainReasonInput" rows="2" placeholder="Motivo de retención…"
+                    style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;resize:none;font-family:inherit"></textarea>
+                </div>`,
+        acceptText: 'Retener fianza',
+        acceptClass: 'btn-danger',
+        onAccept: function () {
+            const reason = document.getElementById('retainReasonInput')?.value || '';
+            updateDeposit(bookingId, 'retained', reason);
+        }
+    });
 }
 
 /** Registra los eventos del modal de reserva — llamado desde el DOMContentLoaded central */
