@@ -8,16 +8,13 @@
 
 // ── Estado local de la sección de reservas ──
 const BookingsState = {
-    all:         [],    // todas las reservas cargadas
-    filtered:    [],    // resultado de aplicar filtros
+    all:         [],
+    filtered:    [],
     currentPage: 1,
     perPage:     10,
-    filters: {
-        status: '',
-        source: '',
-        search: ''
-    },
-    initialized: false  // evitar registrar listeners múltiples veces
+    filters:     { status: '', source: '', search: '' },
+    selected:    new Set(),   // IDs seleccionados para acciones en lote
+    initialized: false
 };
 
 /**
@@ -27,6 +24,7 @@ const BookingsState = {
 function initBookingsSection() {
     if (!BookingsState.initialized) {
         registerBookingFilters();
+        initBulkBar();
         BookingsState.initialized = true;
     }
 
@@ -197,9 +195,14 @@ function renderTable(bookings, isEmpty) {
         const checkOut= b.checkOut   || b.check_out   || '';
         const nights  = b.nights || calcNights(checkIn, checkOut);
         const price   = formatCurrency(b.totalPrice || b.total_price || 0);
+        const checked = BookingsState.selected.has(String(b.id)) ? 'checked' : '';
 
         return `
-            <tr data-id="${b.id}">
+            <tr data-id="${b.id}" class="${checked ? 'row-selected' : ''}">
+                <td style="width:36px;text-align:center">
+                    <input type="checkbox" class="bulk-cb" data-id="${b.id}" ${checked}
+                           aria-label="Seleccionar reserva #${b.id}">
+                </td>
                 <td class="col-id">#${b.id}</td>
                 <td class="col-guest">
                     <div class="guest-name">${escapeHtml(name)}</div>
@@ -220,7 +223,31 @@ function renderTable(bookings, isEmpty) {
         `;
     }).join('');
 
-    // Registrar eventos de las acciones
+    // Checkboxes individuales
+    tbody.querySelectorAll('.bulk-cb').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            if (this.checked) BookingsState.selected.add(String(this.dataset.id));
+            else              BookingsState.selected.delete(String(this.dataset.id));
+            this.closest('tr').classList.toggle('row-selected', this.checked);
+            updateBulkBar();
+        });
+    });
+
+    // Checkbox "seleccionar todo"
+    const selectAll = document.getElementById('bulkSelectAll');
+    if (selectAll) {
+        selectAll.checked = false;
+        selectAll.addEventListener('change', function () {
+            bookings.forEach(function (b) {
+                if (selectAll.checked) BookingsState.selected.add(String(b.id));
+                else                   BookingsState.selected.delete(String(b.id));
+            });
+            renderCurrentPage();
+            updateBulkBar();
+        });
+    }
+
+    // Botones de acción por fila
     tbody.querySelectorAll('[data-action]').forEach(function (btn) {
         btn.addEventListener('click', handleTableAction);
     });
@@ -370,6 +397,75 @@ function scrollToTableTop() {
    ACCIONES: CONFIRMAR Y CANCELAR
    ========================================================= */
 
+/* =========================================================
+   BARRA DE ACCIONES EN LOTE
+   ========================================================= */
+
+function updateBulkBar() {
+    const bar      = document.getElementById('bulkBar');
+    const countEl  = document.getElementById('bulkCount');
+    const n        = BookingsState.selected.size;
+    if (!bar) return;
+    bar.hidden = n === 0;
+    if (countEl) countEl.textContent = `${n} reserva${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}`;
+}
+
+function initBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    if (!bar || bar.dataset.initialized) return;
+    bar.dataset.initialized = 'true';
+
+    document.getElementById('bulkConfirmBtn')?.addEventListener('click', function () {
+        const ids = [...BookingsState.selected].filter(function (id) {
+            const b = findBooking(id);
+            return b && b.status === 'pending';
+        });
+        if (ids.length === 0) { showToast('No hay reservas pendientes seleccionadas', 'warning'); return; }
+        showConfirm({
+            icon: '✅', title: `Confirmar ${ids.length} reserva${ids.length !== 1 ? 's' : ''}`,
+            message: `Se confirmarán ${ids.length} reserva${ids.length !== 1 ? 's' : ''} y se notificará a los huéspedes.`,
+            acceptText: 'Confirmar todas', acceptClass: 'btn-success',
+            onAccept: function () { executeBulkAction(ids, 'confirmed'); }
+        });
+    });
+
+    document.getElementById('bulkCancelBtn')?.addEventListener('click', function () {
+        const ids = [...BookingsState.selected].filter(function (id) {
+            const b = findBooking(id);
+            return b && b.status !== 'cancelled';
+        });
+        if (ids.length === 0) { showToast('No hay reservas cancelables seleccionadas', 'warning'); return; }
+        showConfirm({
+            icon: '⚠️', title: `Cancelar ${ids.length} reserva${ids.length !== 1 ? 's' : ''}`,
+            message: `Se cancelarán ${ids.length} reserva${ids.length !== 1 ? 's' : ''}. Esta acción no es fácilmente reversible.`,
+            acceptText: 'Cancelar todas', acceptClass: 'btn-danger',
+            onAccept: function () { executeBulkAction(ids, 'cancelled'); }
+        });
+    });
+
+    document.getElementById('bulkClearBtn')?.addEventListener('click', function () {
+        BookingsState.selected.clear();
+        renderCurrentPage();
+        updateBulkBar();
+    });
+}
+
+async function executeBulkAction(ids, status) {
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+        try {
+            await BookingsAPI.updateStatus(id, status);
+            updateBookingInState(id, { status });
+            ok++;
+        } catch { fail++; }
+    }
+    BookingsState.selected.clear();
+    applyFilters();
+    updateBulkBar();
+    const msg = `${ok} reserva${ok !== 1 ? 's' : ''} ${status === 'confirmed' ? 'confirmada' : 'cancelada'}${ok !== 1 ? 's' : ''}`;
+    showToast(fail > 0 ? `${msg} · ${fail} con error` : msg, fail > 0 ? 'warning' : 'success');
+}
+
 /**
  * Confirma una reserva con diálogo de confirmación previo.
  * Aplica cambio optimista en la UI antes de la respuesta de la API.
@@ -389,7 +485,7 @@ function confirmBooking(id) {
 }
 
 /**
- * Cancela una reserva con diálogo de confirmación previo.
+ * Cancela una reserva pidiendo motivo al admin.
  */
 function cancelBooking(id) {
     const booking = findBooking(id);
@@ -398,15 +494,32 @@ function cancelBooking(id) {
     showConfirm({
         icon:        '⚠️',
         title:       'Cancelar reserva',
-        message:     `¿Cancelar la reserva de ${name}? Esta acción no se puede deshacer fácilmente.`,
+        message:     `¿Cancelar la reserva de ${name}?`,
+        extra:       `<div style="margin-top:12px">
+                        <label style="font-size:13px;font-weight:600;color:var(--text-mid);display:block;margin-bottom:6px">
+                          Motivo de cancelación
+                        </label>
+                        <select id="cancelReasonSelect" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);
+                                border-radius:6px;font-size:13px;background:var(--white)">
+                          <option value="">Sin especificar</option>
+                          <option value="Solicitud del huésped">Solicitud del huésped</option>
+                          <option value="Fechas no disponibles">Fechas no disponibles</option>
+                          <option value="Problemas en la propiedad">Problemas en la propiedad</option>
+                          <option value="Reserva duplicada">Reserva duplicada</option>
+                          <option value="Otro motivo">Otro motivo</option>
+                        </select>
+                      </div>`,
         acceptText:  'Sí, cancelar',
         acceptClass: 'btn-danger',
-        onAccept:    function () { executeStatusChange(id, 'cancelled'); }
+        onAccept:    function () {
+            const reason = document.getElementById('cancelReasonSelect')?.value || undefined;
+            executeStatusChange(id, 'cancelled', reason);
+        }
     });
 }
 
 /** Ejecuta el cambio de estado: actualiza UI optimistamente y luego llama a la API */
-async function executeStatusChange(id, newStatus) {
+async function executeStatusChange(id, newStatus, cancellationReason) {
     // Guardar el estado previo ANTES del cambio optimista para poder revertirlo si falla
     const booking    = findBooking(id);
     const prevStatus = booking ? booking.status : null;
@@ -428,7 +541,7 @@ async function executeStatusChange(id, newStatus) {
         console.log(`[bookings] Token presente: ${!!token}`);
         console.log(`[bookings] PUT /api/bookings/${id}/status  body:`, { status: newStatus });
 
-        await BookingsAPI.updateStatus(id, newStatus);
+        await BookingsAPI.updateStatus(id, newStatus, cancellationReason);
 
         console.log(`[bookings] PUT /api/bookings/${id}/status → OK`);
         showToast(messages[newStatus].ok, 'success');

@@ -151,8 +151,15 @@ const BookingsAPI = {
     },
 
     /** Cambia el estado de una reserva */
-    updateStatus(id, status) {
-        return apiPut(`/bookings/${id}/status`, { status });
+    updateStatus(id, status, cancellationReason) {
+        const body = { status };
+        if (cancellationReason) body.cancellation_reason = cancellationReason;
+        return apiPut(`/bookings/${id}/status`, body);
+    },
+
+    /** Historial de emails de una reserva */
+    getEmailLogs(bookingId) {
+        return apiGet(`/email-logs?booking_id=${bookingId}`);
     }
 };
 

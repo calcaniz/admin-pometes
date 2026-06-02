@@ -31,6 +31,7 @@
         <div class="confirm-icon" id="confirmIcon">❓</div>
         <h3 id="confirmTitle">¿Estás seguro?</h3>
         <p id="confirmMessage">Esta acción no se puede deshacer.</p>
+        <div id="confirmExtra"></div>
         <div class="confirm-actions">
             <button class="btn btn-ghost" id="confirmCancel">Cancelar</button>
             <button class="btn btn-danger" id="confirmAccept">Confirmar</button>
@@ -249,12 +250,25 @@
                     </div>
                 </div>
 
+                <!-- Barra de acciones en lote -->
+                <div class="bulk-bar" id="bulkBar" hidden>
+                    <span class="bulk-count" id="bulkCount">0 seleccionadas</span>
+                    <div class="bulk-actions">
+                        <button class="btn btn-success btn-sm" id="bulkConfirmBtn">✅ Confirmar</button>
+                        <button class="btn btn-danger btn-sm" id="bulkCancelBtn">❌ Cancelar</button>
+                        <button class="btn btn-ghost btn-sm" id="bulkClearBtn">Deseleccionar todo</button>
+                    </div>
+                </div>
+
                 <!-- Tabla de reservas (desktop) -->
                 <div class="card table-card">
                     <div class="table-wrapper" id="tableWrapper">
                         <table class="bookings-table" id="bookingsTable">
                             <thead>
                                 <tr>
+                                    <th style="width:36px;text-align:center">
+                                        <input type="checkbox" id="bulkSelectAll" aria-label="Seleccionar todo">
+                                    </th>
                                     <th>#</th>
                                     <th>Huésped</th>
                                     <th>Check-in</th>

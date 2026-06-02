@@ -990,12 +990,24 @@ function renderBookingModal(booking) {
         </div>
     `;
 
+    // Motivo de cancelación (si aplica)
+    if (booking.status === 'cancelled' && (booking.cancellation_reason)) {
+        body.innerHTML += `
+            <div class="booking-detail-section" style="grid-column:1/-1">
+                <h3>🚫 Motivo de cancelación</h3>
+                <div class="booking-notes-box">${escapeHtml(booking.cancellation_reason)}</div>
+            </div>`;
+    }
+
     // Cargar desglose de precio de forma asíncrona
     const checkInRaw  = booking.checkIn  || booking.check_in;
     const checkOutRaw = booking.checkOut || booking.check_out;
     if (checkInRaw && checkOutRaw) {
         loadModalPricingBreakdown(checkInRaw, checkOutRaw);
     }
+
+    // Cargar historial de emails de forma asíncrona
+    loadEmailHistory(booking.id);
 
     // Botones de acción según el estado
     footer.innerHTML = '';
@@ -1026,6 +1038,59 @@ function renderBookingModal(booking) {
             cancelBooking(booking.id);
         });
         footer.appendChild(cancelBtn);
+    }
+}
+
+/** Carga y renderiza el historial de emails en el modal */
+async function loadEmailHistory(bookingId) {
+    // Insertar placeholder en el body del modal
+    const body = document.getElementById('modalBody');
+    if (!body) return;
+
+    const historyDiv = document.createElement('div');
+    historyDiv.id = 'modalEmailHistory';
+    historyDiv.style.cssText = 'grid-column:1/-1;margin-top:4px';
+    historyDiv.innerHTML = `
+        <div class="booking-detail-section">
+            <h3>📧 Emails enviados</h3>
+            <div style="font-size:13px;color:var(--text-light)">Cargando...</div>
+        </div>`;
+    body.querySelector('.booking-detail-grid')?.appendChild(historyDiv);
+
+    try {
+        const logs = await BookingsAPI.getEmailLogs(bookingId);
+        if (!logs || logs.length === 0) {
+            historyDiv.innerHTML = `<div class="booking-detail-section"><h3>📧 Emails enviados</h3>
+                <div style="font-size:13px;color:var(--text-light)">No hay emails registrados.</div></div>`;
+            return;
+        }
+
+        const TYPE_LABELS = {
+            request_guest:   'Solicitud → Huésped',
+            request_admin:   'Solicitud → Admin',
+            confirmed_guest: 'Confirmación → Huésped',
+            confirmed_admin: 'Confirmación → Admin',
+            cancelled_guest: 'Cancelación → Huésped',
+            reminder_admin:  'Recordatorio → Admin',
+        };
+
+        const rows = logs.map(function (l) {
+            const label = TYPE_LABELS[l.type] || l.type;
+            const date  = new Date(l.sent_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            const icon  = l.success ? '✅' : '❌';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;
+                                padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+                        <span>${icon} ${label}</span>
+                        <span style="color:var(--text-light)">${date}</span>
+                    </div>`;
+        }).join('');
+
+        historyDiv.innerHTML = `<div class="booking-detail-section">
+            <h3>📧 Emails enviados (${logs.length})</h3>
+            <div>${rows}</div>
+        </div>`;
+    } catch {
+        historyDiv.remove();
     }
 }
 
@@ -1167,6 +1232,10 @@ function showConfirm(opts) {
     document.getElementById('confirmIcon').textContent    = opts.icon    || '❓';
     document.getElementById('confirmTitle').textContent   = opts.title   || '¿Estás seguro?';
     document.getElementById('confirmMessage').textContent = opts.message || '';
+
+    // Slot extra (ej: select de motivo de cancelación)
+    const extraEl = document.getElementById('confirmExtra');
+    if (extraEl) extraEl.innerHTML = opts.extra || '';
 
     const acceptBtn = document.getElementById('confirmAccept');
     acceptBtn.textContent = opts.acceptText  || 'Aceptar';
