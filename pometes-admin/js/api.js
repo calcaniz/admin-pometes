@@ -206,13 +206,18 @@ const PricingRulesAPI = {
 };
 
 const AuthAPI = {
-    /** Cambia la contraseña del administrador */
     changePassword(currentPassword, newPassword) {
         return apiPost('/auth/change-password', { currentPassword, newPassword });
     },
-
-    /** Verifica que la API está disponible */
     ping() {
         return apiGet('/auth/health').catch(() => null);
     }
+};
+
+const UsersAPI = {
+    getAll()                   { return apiGet('/users'); },
+    create(data)               { return apiPost('/users', data); },
+    update(id, data)           { return apiPut(`/users/${id}`, data); },
+    changePassword(id, password) { return apiPut(`/users/${id}/password`, { password }); },
+    remove(id)                 { return apiDelete(`/users/${id}`); }
 };
