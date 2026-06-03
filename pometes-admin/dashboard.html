@@ -564,6 +564,19 @@
                  ════════════════════════════════ -->
             <section class="section" data-section="channels">
 
+                <!-- Aviso de sincronización pendiente -->
+                <div style="background:#FEF9EC;border:1px solid #F6E199;border-radius:8px;
+                            padding:14px 18px;margin-bottom:20px;font-size:14px;color:#7a6010;
+                            display:flex;align-items:flex-start;gap:10px">
+                    <span style="font-size:20px;flex-shrink:0">⚠️</span>
+                    <div>
+                        <strong>Sincronización automática pendiente de activación</strong><br>
+                        Puedes configurar aquí las URLs de iCal de Airbnb y Booking.com,
+                        pero la importación automática de sus reservas todavía no está activa.
+                        Los canales configurados se sincronizarán cuando se implemente el sistema iCal (mejoras 1 y 2).
+                    </div>
+                </div>
+
                 <!-- Lista de canales configurados -->
                 <div class="card" style="margin-bottom:20px">
                     <div class="card-header">
@@ -623,6 +636,12 @@
                  SECCIÓN: ANALÍTICAS
                  ════════════════════════════════ -->
             <section class="section" data-section="analytics">
+
+                <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+                    <button class="btn btn-ghost btn-sm" id="analyticsRefreshBtn" onclick="loadAndRenderAnalytics()">
+                        🔄 Actualizar
+                    </button>
+                </div>
 
                 <!-- Overview métricas -->
                 <div class="metrics-grid" id="analyticsOverview">
