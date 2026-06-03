@@ -197,6 +197,10 @@ function renderTable(bookings, isEmpty) {
         const price   = formatCurrency(b.totalPrice || b.total_price || 0);
         const checked = BookingsState.selected.has(String(b.id)) ? 'checked' : '';
 
+        const hasNotes   = !!(b.admin_notes || b.adminNotes);
+        const hasDeposit = !!(b.deposit_status && b.deposit_status !== 'returned');
+        const depositIcon = { pending: '💰⏳', paid: '💰✅', retained: '💰⚠️' }[b.deposit_status] || '';
+
         return `
             <tr data-id="${b.id}" class="${checked ? 'row-selected' : ''}">
                 <td style="width:36px;text-align:center">
@@ -205,7 +209,11 @@ function renderTable(bookings, isEmpty) {
                 </td>
                 <td class="col-id">#${b.id}</td>
                 <td class="col-guest">
-                    <div class="guest-name">${escapeHtml(name)}</div>
+                    <div class="guest-name">
+                        ${escapeHtml(name)}
+                        ${hasNotes   ? '<span title="Tiene notas del admin" style="cursor:default">📝</span>' : ''}
+                        ${depositIcon ? `<span title="Fianza: ${b.deposit_status}" style="cursor:default;font-size:12px">${depositIcon}</span>` : ''}
+                    </div>
                     ${email ? `<div class="guest-email">${escapeHtml(email)}</div>` : ''}
                 </td>
                 <td class="col-date">${formatDate(checkIn)}</td>
@@ -324,7 +332,10 @@ function renderCards(bookings) {
                 <div class="booking-card-header">
                     <div>
                         <div class="booking-card-id">#${b.id}</div>
-                        <div class="booking-card-name">${escapeHtml(name)}</div>
+                        <div class="booking-card-name">
+                            ${escapeHtml(name)}
+                            ${!!(b.admin_notes||b.adminNotes) ? '<span title="Notas del admin">📝</span>' : ''}
+                        </div>
                         ${email ? `<div class="booking-card-email">${escapeHtml(email)}</div>` : ''}
                     </div>
                     ${renderBadge(b.status)}

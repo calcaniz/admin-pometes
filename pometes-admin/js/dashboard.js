@@ -135,7 +135,7 @@ function navigateTo(sectionName) {
         case 'blocked-dates':  initBlockedDatesSection();   break;
         case 'pricing-rules':  initPricingRulesSection();   break;
         case 'services':       initServicesSection();        break;
-        case 'analytics':      initAnalyticsSection();      break;
+        case 'analytics':      loadAndRenderAnalytics();    break;
         case 'channels':       initChannelsSection();       break;
         case 'settings':       initSettingsSection();       break;
     }
@@ -874,14 +874,12 @@ async function openBookingModal(id) {
     overlay.hidden      = false;
 
     try {
-        // Intentar obtener de la caché local primero
-        let booking = AppState.bookings.find(function (b) { return String(b.id) === String(id); });
+        // Siempre consultar la API para obtener datos completos (servicios, fianza, notas, etc.)
+        const data    = await BookingsAPI.getById(id);
+        const booking = data.booking || data;
 
-        // Si no está en caché, consultar la API
-        if (!booking) {
-            const data = await BookingsAPI.getById(id);
-            booking = data.booking || data;
-        }
+        // Actualizar la caché local con los datos enriquecidos
+        updateBookingInState(id, booking);
 
         renderBookingModal(booking);
 
@@ -1139,9 +1137,15 @@ async function loadEmailHistory(bookingId) {
             const date  = new Date(l.sent_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
             const icon  = l.success ? '✅' : '❌';
             return `<div style="display:flex;justify-content:space-between;align-items:center;
-                                padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+                                padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;gap:8px">
                         <span>${icon} ${label}</span>
-                        <span style="color:var(--text-light)">${date}</span>
+                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                            <span style="color:var(--text-light)">${date}</span>
+                            <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px"
+                                    onclick="resendEmail(${bookingId},'${l.type}',this)">
+                                🔄 Reenviar
+                            </button>
+                        </div>
                     </div>`;
         }).join('');
 
@@ -1229,6 +1233,24 @@ function renderPricingBreakdownHtml(pricing) {
 
 function closeBookingModal() {
     document.getElementById('bookingModalOverlay').hidden = true;
+}
+
+async function resendEmail(bookingId, type, btn) {
+    const originalText = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+        await apiFetch(`/bookings/${bookingId}/resend-email`, {
+            method: 'POST',
+            body: JSON.stringify({ type })
+        });
+        btn.textContent = '✅';
+        showToast('Email reenviado correctamente', 'success');
+        setTimeout(function () { btn.textContent = originalText; btn.disabled = false; }, 2000);
+    } catch (err) {
+        btn.textContent = '❌';
+        showToast('Error al reenviar: ' + err.message, 'error');
+        setTimeout(function () { btn.textContent = originalText; btn.disabled = false; }, 2000);
+    }
 }
 
 async function saveAdminNotes(bookingId) {

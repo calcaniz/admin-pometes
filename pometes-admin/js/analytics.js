@@ -6,12 +6,27 @@
 'use strict';
 
 function initAnalyticsSection() {
-    const bookings = AppState.bookings;
-    if (bookings.length === 0 && AppState.currentSection === 'analytics') {
-        renderAnalytics([]);
-        return;
+    renderAnalytics(AppState.bookings);
+}
+
+// Recarga datos desde la API y renderiza (llamado desde navigateTo)
+async function loadAndRenderAnalytics() {
+    const refreshBtn = document.getElementById('analyticsRefreshBtn');
+    if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '⏳ Actualizando...'; }
+
+    try {
+        const data = await BookingsAPI.getAll();
+        const list = Array.isArray(data) ? data : (data.bookings || []);
+        AppState.bookings   = list;
+        BookingsState.all   = list;
+        renderAnalytics(list);
+        updatePendingBadge();
+    } catch (err) {
+        showToast('Error al cargar datos: ' + err.message, 'error');
+        renderAnalytics(AppState.bookings); // usar caché si falla
+    } finally {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = '🔄 Actualizar'; }
     }
-    renderAnalytics(bookings);
 }
 
 function renderAnalytics(bookings) {
