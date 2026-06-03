@@ -124,6 +124,7 @@ function navigateTo(sectionName) {
         analytics:      'Analíticas',
         channels:        'Canales externos',
         communications:  'Comunicaciones',
+        users:           'Administradores',
         settings:        'Configuración'
     };
     document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
@@ -139,6 +140,7 @@ function navigateTo(sectionName) {
         case 'analytics':      loadAndRenderAnalytics();    break;
         case 'channels':       initChannelsSection();       break;
         case 'communications': initCommunicationsSection(); break;
+        case 'users':          initUsersSection();          break;
         case 'settings':       initSettingsSection();       break;
     }
 }
