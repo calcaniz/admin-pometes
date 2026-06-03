@@ -1,6 +1,6 @@
 /* =========================================================
    PRICING-RULES.JS — Gestión de reglas de precios por temporada
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';

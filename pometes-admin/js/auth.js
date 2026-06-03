@@ -1,6 +1,6 @@
 /* =========================================================
    AUTH.JS — Gestión de autenticación JWT
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';
@@ -9,7 +9,7 @@
 const AUTH_TOKEN_KEY  = 'pometes_admin_token';
 const LOGIN_PAGE      = 'index.html';
 const DASHBOARD_PAGE  = 'dashboard.html';
-const API_BASE_AUTH   = 'https://casaruralpometes.es/api';
+const API_BASE_AUTH   = 'https://lallardepometes.es/api';
 
 // ── Gestión del token ──
 

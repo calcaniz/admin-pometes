@@ -1,6 +1,6 @@
 /* =========================================================
    ANALYTICS.JS — Analíticas básicas del panel
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';

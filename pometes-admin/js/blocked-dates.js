@@ -1,6 +1,6 @@
 /* =========================================================
    BLOCKED-DATES.JS — Gestión de fechas bloqueadas
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';

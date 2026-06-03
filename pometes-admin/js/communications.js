@@ -1,6 +1,6 @@
 /* =========================================================
    COMMUNICATIONS.JS — Mensajería masiva a huéspedes
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 'use strict';
 

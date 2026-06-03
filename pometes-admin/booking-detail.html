@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de reserva — Casa Pometes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <style>
+        /* ── Layout de la página de detalle ── */
+        body { background: var(--sky); min-height: 100vh; }
+
+        .detail-page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+        }
+
+        /* ── Cabecera sticky ── */
+        .detail-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 24px;
+            height: 64px;
+            margin: 0 -24px 32px;
+        }
+
+        .detail-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-mid);
+            transition: color 0.18s;
+            white-space: nowrap;
+        }
+        .detail-back:hover { color: var(--navy); }
+        .detail-back svg { flex-shrink: 0; }
+
+        .detail-topbar-title {
+            flex: 1;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .detail-topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* ── Grid principal ── */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .detail-grid-wide {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .detail-full { margin-bottom: 20px; }
+
+        /* ── Card de sección ── */
+        .detail-section-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .detail-section-title {
+            padding: 14px 20px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--border);
+            background: var(--sky);
+        }
+
+        .detail-section-body {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .detail-field { display: flex; flex-direction: column; gap: 3px; }
+        .detail-field label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .detail-field span, .detail-field a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .detail-field a { color: var(--navy); text-decoration: underline; }
+
+        .detail-value-large {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        /* ── Notas admin ── */
+        .notes-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--text);
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.18s;
+            box-sizing: border-box;
+        }
+        .notes-textarea:focus { border-color: var(--navy); outline: none; box-shadow: 0 0 0 3px rgba(44,95,122,0.10); }
+
+        /* ── Historial emails ── */
+        .email-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            gap: 8px;
+        }
+        .email-row:last-child { border-bottom: none; }
+        .email-row-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .email-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .email-date { font-size: 11px; color: var(--text-light); white-space: nowrap; }
+
+        /* ── Servicios tabla ── */
+        .services-detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .services-detail-table th {
+            text-align: left;
+            padding: 6px 0;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 1.5px solid var(--border);
+        }
+        .services-detail-table td {
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            vertical-align: middle;
+        }
+        .services-detail-table tbody tr:last-child td { border-bottom: none; }
+        .services-total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--navy);
+            padding-top: 10px;
+            margin-top: 4px;
+            border-top: 1.5px solid var(--border);
+        }
+
+        /* ── Deposit / Payment status ── */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-pill-pending  { background: #FEF3CD; color: #856404; }
+        .status-pill-paid     { background: #D1F2E0; color: #1a7a45; }
+        .status-pill-returned { background: #EBF4FB; color: var(--navy); }
+        .status-pill-retained { background: #FCE4E4; color: #c0392b; }
+
+        /* ── Loading skeleton ── */
+        .detail-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            gap: 16px;
+            color: var(--text-mid);
+        }
+        .detail-loading .loading-spinner { width: 36px; height: 36px; }
+
+        /* ── Toast ── */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .detail-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 600px) {
+            .detail-page { padding: 0 12px 40px; }
+            .detail-topbar { padding: 0 12px; margin: 0 -12px 20px; }
+            .detail-grid, .detail-grid-wide { grid-template-columns: 1fr; }
+            .detail-topbar-title { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- Diálogo de confirmación (reutilizado del dashboard) -->
+<div class="confirm-overlay" id="confirmOverlay" hidden role="dialog" aria-modal="true">
+    <div class="confirm-dialog">
+        <div class="confirm-icon" id="confirmIcon">❓</div>
+        <h3 id="confirmTitle">¿Estás seguro?</h3>
+        <p id="confirmMessage"></p>
+        <div id="confirmExtra"></div>
+        <div class="confirm-actions">
+            <button class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+            <button class="btn btn-danger" id="confirmAccept">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div class="detail-page">
+
+    <!-- Barra superior -->
+    <div class="detail-topbar">
+        <a href="dashboard.html" class="detail-back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Volver
+        </a>
+
+        <div class="detail-topbar-title" id="pageTitle">
+            <div class="loading-spinner" style="width:18px;height:18px"></div>
+            Cargando reserva...
+        </div>
+
+        <div class="detail-topbar-actions" id="pageActions"></div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div id="detailContent">
+        <div class="detail-loading">
+            <div class="loading-spinner"></div>
+            <span>Cargando detalle de la reserva…</span>
+        </div>
+    </div>
+
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/booking-detail.js"></script>
+</body>
+</html>

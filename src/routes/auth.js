@@ -1,6 +1,6 @@
 /* =========================================================
    src/routes/auth.js — Endpoints de autenticación
-   Casa Rural Pometes · API REST
+   La Llar de Pometes · API REST
    =========================================================
    Variables de entorno requeridas:
      ADMIN_PASSWORD  — contraseña del administrador
