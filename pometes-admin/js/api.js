@@ -150,6 +150,11 @@ const BookingsAPI = {
         return apiGet(`/bookings/${id}`);
     },
 
+    /** Marca el pago de una reserva */
+    updatePayment(id, status) {
+        return apiPut(`/bookings/${id}/payment`, { status });
+    },
+
     /** Cambia el estado de una reserva */
     updateStatus(id, status, cancellationReason) {
         const body = { status };

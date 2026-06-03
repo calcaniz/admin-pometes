@@ -108,6 +108,10 @@
                 <span class="nav-icon">🔗</span>
                 <span class="nav-label">Canales</span>
             </a>
+            <a href="#" class="nav-item" data-section="communications">
+                <span class="nav-icon">📢</span>
+                <span class="nav-label">Comunicaciones</span>
+            </a>
             <a href="#" class="nav-item" data-section="analytics">
                 <span class="nav-icon">📊</span>
                 <span class="nav-label">Analíticas</span>
@@ -633,6 +637,62 @@
             </section>
 
             <!-- ════════════════════════════════
+                 SECCIÓN: COMUNICACIONES
+                 ════════════════════════════════ -->
+            <section class="section" data-section="communications">
+
+                <div class="settings-grid">
+
+                    <!-- Filtro de destinatarios -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">👥 Destinatarios</h2>
+                        </div>
+                        <form id="commFilterForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="commFilter">Filtrar por</label>
+                                <select id="commFilter">
+                                    <option value="confirmed">Todas las reservas confirmadas</option>
+                                    <option value="upcoming">Check-in en los próximos días</option>
+                                    <option value="past">Check-out reciente</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="commDaysGroup">
+                                <label for="commDays">Número de días</label>
+                                <input type="number" id="commDays" value="14" min="1" max="365">
+                            </div>
+                        </form>
+                        <div style="padding:8px 24px 16px">
+                            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px" id="commRecipientsCount">—</div>
+                            <div id="commRecipientsList" style="max-height:200px;overflow-y:auto"></div>
+                        </div>
+                    </div>
+
+                    <!-- Redactar mensaje -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">✍️ Redactar mensaje</h2>
+                        </div>
+                        <form id="commSendForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="commSubject">Asunto del email</label>
+                                <input type="text" id="commSubject" placeholder="Ej: Instrucciones de llegada" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="commMessage">Mensaje</label>
+                                <textarea id="commMessage" rows="8" placeholder="Escribe aquí el mensaje para los huéspedes…" required
+                                          style="resize:vertical"></textarea>
+                                <small class="form-hint">El mensaje se enviará con el diseño corporativo de Casa Rural Pometes.</small>
+                            </div>
+                            <div id="commError" class="login-error" hidden style="color:var(--danger);font-size:13px"></div>
+                            <button type="submit" class="btn btn-primary" id="commSendBtn">📧 Enviar mensaje</button>
+                        </form>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ════════════════════════════════
                  SECCIÓN: ANALÍTICAS
                  ════════════════════════════════ -->
             <section class="section" data-section="analytics">
@@ -659,12 +719,32 @@
                 </div>
 
                 <!-- Reservas por canal -->
-                <div class="card">
+                <div class="card" style="margin-bottom:20px">
                     <div class="card-header">
                         <h2 class="card-title">🌐 Reservas por canal</h2>
                     </div>
                     <div id="analyticsBookingsBySource" style="padding:8px 0 8px">
                         <div class="an-empty">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Previsión de ocupación -->
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 Ocupación prevista — próximos 3 meses</h2>
+                    </div>
+                    <div id="analyticsOccupancy" style="padding:20px 24px 8px">
+                        <div class="an-empty">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Estado de servicios -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🔧 Estado del sistema</h2>
+                    </div>
+                    <div id="analyticsStatus">
+                        <div class="an-empty">Verificando...</div>
                     </div>
                 </div>
 
@@ -739,6 +819,48 @@
                         </form>
                     </div>
 
+                    <!-- Configuración de pagos -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">💳 Instrucciones de pago</h2>
+                        </div>
+                        <form id="paymentSettingsForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="paymentHolder">Titular de la cuenta</label>
+                                <input type="text" id="paymentHolder" placeholder="Nombre del titular">
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentBizum">Número Bizum</label>
+                                <input type="tel" id="paymentBizum" placeholder="+34 600 000 000">
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentIban">IBAN (transferencia)</label>
+                                <input type="text" id="paymentIban" placeholder="ES91 2100 0418 4502 0005 1332">
+                                <small class="form-hint">Se incluirán en el email de confirmación de la reserva.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </form>
+                    </div>
+
+                    <!-- Configuración de reseñas -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">⭐ Solicitud de valoraciones</h2>
+                        </div>
+                        <form id="reviewSettingsForm" class="settings-form">
+                            <div class="form-group">
+                                <label for="reviewUrl">URL de Google Reviews / TripAdvisor</label>
+                                <input type="url" id="reviewUrl" placeholder="https://g.page/r/...">
+                            </div>
+                            <div class="form-group">
+                                <label for="reviewDaysAfter">Días después del check-out para enviar</label>
+                                <input type="number" id="reviewDaysAfter" placeholder="3" min="1" max="30" value="3">
+                                <small class="form-hint">Deja la URL vacía para desactivar los emails de valoración.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </form>
+                    </div>
+
                     <!-- Información del sistema -->
                     <div class="card settings-info-card">
                         <div class="card-header">
@@ -783,6 +905,7 @@
 <script src="js/blocked-dates.js"></script>
 <script src="js/pricing-rules.js"></script>
 <script src="js/services-admin.js"></script>
+<script src="js/communications.js"></script>
 <script src="js/analytics.js"></script>
 
 </body>
