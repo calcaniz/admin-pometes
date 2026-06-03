@@ -122,8 +122,9 @@ function navigateTo(sectionName) {
         'pricing-rules':'Precios por temporada',
         services:       'Servicios extra',
         analytics:      'Analíticas',
-        channels:       'Canales externos',
-        settings:       'Configuración'
+        channels:        'Canales externos',
+        communications:  'Comunicaciones',
+        settings:        'Configuración'
     };
     document.getElementById('headerTitle').textContent = titles[sectionName] || sectionName;
 
@@ -137,6 +138,7 @@ function navigateTo(sectionName) {
         case 'services':       initServicesSection();        break;
         case 'analytics':      loadAndRenderAnalytics();    break;
         case 'channels':       initChannelsSection();       break;
+        case 'communications': initCommunicationsSection(); break;
         case 'settings':       initSettingsSection();       break;
     }
 }
@@ -549,6 +551,8 @@ function initSettingsSection() {
     initPasswordForm();
     initPriceForm();
     initMinStayForm();
+    initPaymentSettingsForm();
+    initReviewSettingsForm();
     initApiCheck();
     showLastAccess();
 }
@@ -666,6 +670,64 @@ function initMinStayForm() {
         } finally {
             btn.disabled = false;
             btn.textContent = 'Guardar';
+        }
+    });
+}
+
+function initPaymentSettingsForm() {
+    const form = document.getElementById('paymentSettingsForm');
+    if (!form || form.dataset.initialized) return;
+    form.dataset.initialized = 'true';
+
+    SettingsAPI.getAll().then(function (s) {
+        if (s.payment_holder) document.getElementById('paymentHolder').value = s.payment_holder;
+        if (s.payment_bizum)  document.getElementById('paymentBizum').value  = s.payment_bizum;
+        if (s.payment_iban)   document.getElementById('paymentIban').value   = s.payment_iban;
+    }).catch(function () {});
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true; btn.textContent = 'Guardando...';
+        try {
+            await Promise.all([
+                SettingsAPI.update('payment_holder', document.getElementById('paymentHolder').value),
+                SettingsAPI.update('payment_bizum',  document.getElementById('paymentBizum').value),
+                SettingsAPI.update('payment_iban',   document.getElementById('paymentIban').value),
+            ]);
+            showToast('Instrucciones de pago guardadas', 'success');
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Guardar';
+        }
+    });
+}
+
+function initReviewSettingsForm() {
+    const form = document.getElementById('reviewSettingsForm');
+    if (!form || form.dataset.initialized) return;
+    form.dataset.initialized = 'true';
+
+    SettingsAPI.getAll().then(function (s) {
+        if (s.review_url)        document.getElementById('reviewUrl').value        = s.review_url;
+        if (s.review_days_after) document.getElementById('reviewDaysAfter').value  = s.review_days_after;
+    }).catch(function () {});
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true; btn.textContent = 'Guardando...';
+        try {
+            await Promise.all([
+                SettingsAPI.update('review_url',         document.getElementById('reviewUrl').value),
+                SettingsAPI.update('review_days_after',  document.getElementById('reviewDaysAfter').value),
+            ]);
+            showToast('Configuración de valoraciones guardada', 'success');
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Guardar';
         }
     });
 }
@@ -990,6 +1052,24 @@ function renderBookingModal(booking) {
         </div>
     `;
 
+    // Estado de pago
+    const paymentStatus = booking.payment_status || 'pending';
+    const payIcon = paymentStatus === 'paid' ? '✅' : '⏳';
+    const payLabel = paymentStatus === 'paid' ? 'Pagado' : 'Pendiente de pago';
+    body.innerHTML += `
+        <div class="booking-detail-section">
+            <h3>💳 Pago</h3>
+            <div class="detail-field">
+                <label>Estado</label>
+                <span style="font-weight:600">${payIcon} ${payLabel}</span>
+            </div>
+            ${paymentStatus === 'pending' ? `
+            <button class="btn btn-success btn-sm" style="margin-top:8px"
+                    onclick="markBookingPaid(${booking.id})">
+                ✅ Marcar como pagado
+            </button>` : ''}
+        </div>`;
+
     // Servicios de la reserva
     const services = booking.services || [];
     if (services.length > 0) {
@@ -1233,6 +1313,17 @@ function renderPricingBreakdownHtml(pricing) {
 
 function closeBookingModal() {
     document.getElementById('bookingModalOverlay').hidden = true;
+}
+
+async function markBookingPaid(bookingId) {
+    try {
+        await BookingsAPI.updatePayment(bookingId, 'paid');
+        updateBookingInState(bookingId, { payment_status: 'paid' });
+        showToast('Pago registrado correctamente', 'success');
+        openBookingModal(bookingId); // recargar modal
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
 }
 
 async function resendEmail(bookingId, type, btn) {

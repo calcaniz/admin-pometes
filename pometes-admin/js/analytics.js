@@ -33,6 +33,105 @@ function renderAnalytics(bookings) {
     renderAnalyticsOverview(bookings);
     renderRevenueByMonth(bookings);
     renderBookingsBySource(bookings);
+    renderOccupancyForecast(bookings);
+    loadApiStatus();
+}
+
+// ── Previsión de ocupación — próximos 3 meses ────────────────────────────────
+
+function renderOccupancyForecast(bookings) {
+    const el = document.getElementById('analyticsOccupancy');
+    if (!el) return;
+
+    const confirmed = bookings.filter(function (b) { return b.status === 'confirmed'; });
+    const now       = new Date();
+    const months    = [];
+
+    for (let i = 0; i < 3; i++) {
+        const d     = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const year  = d.getFullYear();
+        const month = d.getMonth();
+        const days  = new Date(year, month + 1, 0).getDate();
+        const label = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        const label2= label.charAt(0).toUpperCase() + label.slice(1);
+
+        const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const monthEnd   = `${year}-${String(month + 1).padStart(2, '0')}-${String(days).padStart(2, '0')}`;
+
+        let occupiedDays = 0;
+        let revenue      = 0;
+
+        confirmed.forEach(function (b) {
+            const ci = b.check_in  || b.checkIn;
+            const co = b.check_out || b.checkOut;
+            if (!ci || !co) return;
+            const start = ci > monthStart ? ci : monthStart;
+            const end   = co < monthEnd   ? co : monthEnd;
+            if (start < end) {
+                const n = Math.round((new Date(end) - new Date(start)) / 86400000);
+                if (n > 0) {
+                    occupiedDays += n;
+                    revenue += Number(b.total_price || b.totalPrice || 0);
+                }
+            }
+        });
+
+        const pct = Math.min(100, Math.round(occupiedDays / days * 100));
+        months.push({ label: label2, days, occupiedDays, pct, revenue });
+    }
+
+    el.innerHTML = months.map(function (m) {
+        const color = m.pct >= 70 ? 'var(--teal)' : m.pct >= 40 ? '#E07B54' : 'var(--sky-mid)';
+        return `
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+                <div style="min-width:140px;font-size:13px;font-weight:600;color:var(--text)">${m.label}</div>
+                <div style="flex:1;background:var(--sky);border-radius:6px;height:24px;overflow:hidden;position:relative">
+                    <div style="height:100%;width:${m.pct}%;background:${color};border-radius:6px;
+                                transition:width 0.5s ease;display:flex;align-items:center;padding-left:8px">
+                        ${m.pct > 15 ? `<span style="font-size:12px;font-weight:700;color:white">${m.pct}%</span>` : ''}
+                    </div>
+                    ${m.pct <= 15 ? `<span style="position:absolute;left:8px;top:4px;font-size:12px;font-weight:600;color:var(--text-mid)">${m.pct}%</span>` : ''}
+                </div>
+                <div style="min-width:80px;text-align:right;font-size:13px;color:var(--text-mid)">
+                    ${m.occupiedDays}/${m.days} días<br>
+                    <strong style="color:var(--text)">${formatCurrency(m.revenue)}</strong>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+// ── Estado de los servicios ──────────────────────────────────────────────────
+
+async function loadApiStatus() {
+    const el = document.getElementById('analyticsStatus');
+    if (!el) return;
+
+    try {
+        const data = await publicFetch('/status');
+        const services = [
+            { key: 'mysql',            label: 'Base de datos',    icon: '🗄️' },
+            { key: 'smtp',             label: 'Email (SMTP)',      icon: '📧' },
+            { key: 'google_calendar',  label: 'Google Calendar',  icon: '📅' },
+        ];
+
+        el.innerHTML = services.map(function (s) {
+            const svc  = data[s.key] || {};
+            const ok   = svc.ok;
+            const dot  = ok ? '🟢' : '🔴';
+            const txt  = ok ? 'Operativo' : (svc.error || 'Error');
+            const lat  = svc.latencyMs ? ` (${svc.latencyMs}ms)` : '';
+            return `
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                            padding:10px 24px;border-bottom:1px solid var(--border);font-size:14px">
+                    <span>${s.icon} ${s.label}</span>
+                    <span style="color:${ok ? 'var(--success)' : 'var(--danger)'};font-weight:600">
+                        ${dot} ${txt}${lat}
+                    </span>
+                </div>`;
+        }).join('');
+    } catch {
+        el.innerHTML = '<div style="padding:16px 24px;color:var(--text-light);font-size:13px">No se pudo obtener el estado de los servicios.</div>';
+    }
 }
 
 // ── Tarjetas resumen ──────────────────────────────────────
