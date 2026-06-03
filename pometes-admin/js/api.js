@@ -214,6 +214,16 @@ const AuthAPI = {
     }
 };
 
+const ExpensesAPI = {
+    getAll(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiGet(`/expenses${qs ? '?' + qs : ''}`);
+    },
+    create(data)     { return apiPost('/expenses', data); },
+    update(id, data) { return apiPut(`/expenses/${id}`, data); },
+    remove(id)       { return apiDelete(`/expenses/${id}`); }
+};
+
 const UsersAPI = {
     getAll()                   { return apiGet('/users'); },
     create(data)               { return apiPost('/users', data); },

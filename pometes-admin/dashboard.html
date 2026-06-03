@@ -116,6 +116,10 @@
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                 <span class="nav-label">Analíticas</span>
             </a>
+            <a href="#" class="nav-item" data-section="expenses">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                <span class="nav-label">Gastos</span>
+            </a>
             <a href="#" class="nav-item" data-section="users">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                 <span class="nav-label">Usuarios</span>
@@ -772,6 +776,146 @@
             </section>
 
             <!-- ════════════════════════════════
+                 SECCIÓN: GASTOS
+                 ════════════════════════════════ -->
+            <section class="section" data-section="expenses">
+
+                <!-- Métricas resumen -->
+                <div class="metrics-grid" id="expMetricsGrid">
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-danger">💸</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="expMetricTotal">—</span>
+                            <span class="metric-label">Total invertido</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-warning">📅</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="expMetricYear">—</span>
+                            <span class="metric-label">Este año</span>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon metric-icon-teal">📊</div>
+                        <div class="metric-info">
+                            <span class="metric-value" id="expMetricTopCat">—</span>
+                            <span class="metric-label">Mayor inversión</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="card filters-card">
+                    <div class="filters-row">
+                        <div class="filter-group" style="flex:1">
+                            <label class="filter-label">Categoría</label>
+                            <div class="filter-tabs" id="expCategoryFilter">
+                                <button class="filter-tab active" data-value="">Todas</button>
+                                <button class="filter-tab" data-value="reformas">🔨 Reformas</button>
+                                <button class="filter-tab" data-value="mantenimiento">🔧 Mantenimiento</button>
+                                <button class="filter-tab" data-value="electrodomesticos">📺 Electrodom.</button>
+                                <button class="filter-tab" data-value="mobiliario">🪑 Mobiliario</button>
+                                <button class="filter-tab" data-value="limpieza">🧹 Limpieza</button>
+                                <button class="filter-tab" data-value="seguros">📋 Seguros</button>
+                                <button class="filter-tab" data-value="otros">📦 Otros</button>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Año</label>
+                            <select id="expYearFilter" style="padding:6px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--white);color:var(--text);cursor:pointer">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="results-info">
+                        <span id="expResultsInfo">Cargando gastos...</span>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="card table-card">
+                    <div class="table-wrapper">
+                        <table class="bookings-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Categoría</th>
+                                    <th>Descripción</th>
+                                    <th>Proveedor</th>
+                                    <th style="text-align:right">Importe</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expTableBody"></tbody>
+                        </table>
+                        <div id="expEmptyState" class="empty-state" hidden>
+                            <div class="empty-icon">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.4"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                            <p>No hay gastos que coincidan con los filtros</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title" id="expFormTitle">➕ Añadir gasto</h2>
+                    </div>
+                    <form id="expenseForm" class="settings-form">
+                        <div class="settings-grid" style="gap:16px;padding:0">
+                            <div class="form-group">
+                                <label for="expDate">Fecha</label>
+                                <input type="date" id="expDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expCategory">Categoría</label>
+                                <select id="expCategory" required>
+                                    <option value="">Selecciona...</option>
+                                    <option value="reformas">🔨 Reformas</option>
+                                    <option value="mantenimiento">🔧 Mantenimiento</option>
+                                    <option value="electrodomesticos">📺 Electrodomésticos</option>
+                                    <option value="mobiliario">🪑 Mobiliario</option>
+                                    <option value="limpieza">🧹 Limpieza</option>
+                                    <option value="seguros">📋 Seguros</option>
+                                    <option value="otros">📦 Otros</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="expDescription">Descripción</label>
+                                <input type="text" id="expDescription" placeholder="Ej: Instalación caldera nueva" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expAmount">Importe (€)</label>
+                                <input type="number" id="expAmount" placeholder="0.00" min="0" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expProvider">Proveedor <span style="color:var(--text-light);font-weight:400">(opcional)</span></label>
+                                <input type="text" id="expProvider" placeholder="Ej: Ferretería Martínez">
+                            </div>
+                            <div class="form-group">
+                                <label for="expNotes">Notas <span style="color:var(--text-light);font-weight:400">(opcional)</span></label>
+                                <input type="text" id="expNotes" placeholder="Detalles adicionales">
+                            </div>
+                        </div>
+                        <div id="expFormError" class="login-error" hidden>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <span id="expFormErrorMsg"></span>
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+                            <button type="submit" class="btn btn-primary" id="expSubmitBtn">Añadir gasto</button>
+                            <button type="button" class="btn btn-ghost" id="expCancelEdit" hidden>Cancelar edición</button>
+                        </div>
+                    </form>
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════
                  SECCIÓN: USUARIOS
                  ════════════════════════════════ -->
             <section class="section" data-section="users">
@@ -990,6 +1134,7 @@
 <script src="js/services-admin.js"></script>
 <script src="js/communications.js"></script>
 <script src="js/analytics.js"></script>
+<script src="js/expenses.js"></script>
 <script src="js/users.js"></script>
 
 </body>

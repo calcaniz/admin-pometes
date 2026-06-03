@@ -124,6 +124,7 @@ function navigateTo(sectionName) {
         analytics:      'Analíticas',
         channels:        'Canales externos',
         communications:  'Comunicaciones',
+        expenses:        'Gastos de la casa',
         users:           'Administradores',
         settings:        'Configuración'
     };
@@ -140,6 +141,7 @@ function navigateTo(sectionName) {
         case 'analytics':      loadAndRenderAnalytics();    break;
         case 'channels':       initChannelsSection();       break;
         case 'communications': initCommunicationsSection(); break;
+        case 'expenses':       initExpensesSection();       break;
         case 'users':          initUsersSection();          break;
         case 'settings':       initSettingsSection();       break;
     }
