@@ -1,12 +1,12 @@
 /* =========================================================
    API.JS — Wrapper fetch con JWT y manejo de errores
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';
 
 /** URL base de la API REST */
-const API_BASE = 'https://casaruralpometes.es/api';
+const API_BASE = 'https://lallardepometes.es/api';
 
 /**
  * Realiza una petición autenticada a la API.

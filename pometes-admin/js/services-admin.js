@@ -1,6 +1,6 @@
 /* =========================================================
    SERVICES-ADMIN.JS — Gestión del catálogo de servicios extra
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 'use strict';
 

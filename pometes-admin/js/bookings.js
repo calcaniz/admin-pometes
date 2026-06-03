@@ -1,7 +1,7 @@
 /* =========================================================
    BOOKINGS.JS — Gestión de reservas: listar, filtrar, paginar,
                  confirmar y cancelar
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';
@@ -303,7 +303,7 @@ function handleTableAction(e) {
     const id     = btn.dataset.id;
 
     switch (action) {
-        case 'view':    openBookingModal(id);  break;
+        case 'view':    goToBookingDetail(id); break;
         case 'confirm': confirmBooking(id);    break;
         case 'cancel':  cancelBooking(id);     break;
     }
@@ -364,7 +364,7 @@ function renderCards(bookings) {
                 </div>
                 <div class="booking-card-footer">
                     <div class="booking-card-actions">
-                        <button class="btn btn-ghost btn-sm" data-action="view" data-id="${b.id}">👁️ Ver</button>
+                        <a class="btn btn-ghost btn-sm" href="booking-detail.html?id=${b.id}">👁️ Ver</a>
                         ${b.status === 'pending' ? `<button class="btn btn-success btn-sm" data-action="confirm" data-id="${b.id}">✅ Confirmar</button>` : ''}
                         ${b.status !== 'cancelled' ? `<button class="btn btn-danger btn-sm" data-action="cancel" data-id="${b.id}">❌ Cancelar</button>` : ''}
                     </div>
@@ -573,6 +573,11 @@ async function executeStatusChange(id, newStatus, cancellationReason) {
 /* =========================================================
    UTILIDADES DE RESERVAS
    ========================================================= */
+
+/** Navega a la página de detalle de la reserva */
+function goToBookingDetail(id) {
+    window.location.href = `booking-detail.html?id=${id}`;
+}
 
 /** Busca una reserva por ID en el estado global */
 function findBooking(id) {

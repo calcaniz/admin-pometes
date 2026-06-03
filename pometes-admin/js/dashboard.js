@@ -1,6 +1,6 @@
 /* =========================================================
    DASHBOARD.JS — Lógica principal del panel
-   Casa Rural Pometes · Panel de Administración
+   La Llar de Pometes · Panel de Administración
    ========================================================= */
 
 'use strict';
@@ -280,10 +280,10 @@ function renderRecentBookings(bookings) {
         `;
     }).join('');
 
-    // Click para abrir modal de detalle
+    // Click para ir a la página de detalle
     container.querySelectorAll('.recent-booking-item').forEach(function (item) {
         item.addEventListener('click', function () {
-            openBookingModal(this.dataset.id);
+            window.location.href = 'booking-detail.html?id=' + this.dataset.id;
         });
     });
 }
@@ -500,7 +500,7 @@ function showCalendarDayInfo(dateStr) {
     content.innerHTML = `
         <div class="day-info-title">
             📅 ${dateFormatted}
-            <button class="btn btn-sm btn-primary" onclick="openBookingModal(${booking.id})">Ver reserva</button>
+            <a class="btn btn-sm btn-primary" href="booking-detail.html?id=${booking.id}">Ver reserva</a>
         </div>
         <div class="day-info-fields">
             <div class="day-info-field">
@@ -797,11 +797,84 @@ function initChannelsSection() {
 
 async function loadChannels() {
     try {
-        const data = await apiFetch('/channels');
-        ChannelsState.items = Array.isArray(data) ? data : [];
+        const [data, exportData] = await Promise.all([
+            apiFetch('/channels'),
+            apiFetch('/ical/export-url').catch(function () { return { url: '' }; })
+        ]);
+        ChannelsState.items     = Array.isArray(data) ? data : [];
+        ChannelsState.exportUrl = exportData.url || '';
         renderChannelsList();
+        renderExportUrl(ChannelsState.exportUrl);
     } catch (err) {
         showToast('No se pudieron cargar los canales: ' + err.message, 'error');
+    }
+}
+
+function renderExportUrl(url) {
+    const el = document.getElementById('icalExportUrlBox');
+    if (!el || !url) return;
+    el.value = url;
+}
+
+async function copyExportUrl() {
+    const el = document.getElementById('icalExportUrlBox');
+    if (!el || !el.value) return;
+    try {
+        await navigator.clipboard.writeText(el.value);
+        showToast('URL copiada al portapapeles', 'success');
+    } catch {
+        el.select();
+        document.execCommand('copy');
+        showToast('URL copiada', 'success');
+    }
+}
+
+async function regenerateExportToken() {
+    showConfirm({
+        icon: '⚠️',
+        title: 'Regenerar token de exportación',
+        message: 'La URL actual dejará de funcionar en Airbnb/Booking. Deberás actualizarla en cada plataforma.',
+        acceptText: 'Regenerar',
+        acceptClass: 'btn-danger',
+        onAccept: async function () {
+            try {
+                const data = await apiFetch('/ical/regenerate-token', { method: 'POST' });
+                ChannelsState.exportUrl = data.url;
+                renderExportUrl(data.url);
+                showToast('Token regenerado. Actualiza la URL en cada plataforma.', 'warning', 5000);
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+    });
+}
+
+async function syncChannelNow(id, btn) {
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Sincronizando…';
+    try {
+        await apiFetch(`/ical/sync/${id}`, { method: 'POST' });
+        showToast('Sincronización completada ✅', 'success');
+        await loadChannels();
+    } catch (err) {
+        showToast('Error en sincronización: ' + err.message, 'error');
+        await loadChannels();
+    } finally {
+        btn.disabled = false; btn.textContent = orig;
+    }
+}
+
+async function syncAllNow(btn) {
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Sincronizando todo…';
+    try {
+        await apiFetch('/ical/sync', { method: 'POST' });
+        showToast('Todos los canales sincronizados ✅', 'success');
+        await loadChannels();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = orig;
     }
 }
 
@@ -817,23 +890,27 @@ function renderChannelsList() {
     const PLATFORM_LABELS = { airbnb: '🏠 Airbnb', booking: '📱 Booking.com', holidu: '🏡 Holidu' };
 
     el.innerHTML = ChannelsState.items.map(function (ch) {
-        const label     = PLATFORM_LABELS[ch.platform] || ch.platform;
-        const syncText  = ch.last_synced_at
-            ? 'Última sync: ' + new Date(ch.last_synced_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+        const label      = PLATFORM_LABELS[ch.platform] || ch.platform;
+        const hasUrl     = !!(ch.ical_import_url);
+        const syncText   = ch.last_synced_at
+            ? '⏱ ' + new Date(ch.last_synced_at).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
             : 'Nunca sincronizado';
-        const statusCls = ch.sync_error ? 'ch-status-error' : (ch.last_synced_at ? 'ch-status-ok' : 'ch-status-pending');
-        const statusTxt = ch.sync_error ? '⚠️ Error' : (ch.last_synced_at ? '✅ OK' : '⏳ Pendiente');
+        const statusCls  = ch.sync_error ? 'ch-status-error' : (ch.last_synced_at ? 'ch-status-ok' : 'ch-status-pending');
+        const statusTxt  = ch.sync_error ? '⚠️ Error' : (ch.last_synced_at ? '✅ Sincronizado' : '⏳ Pendiente');
+        const activeLbl  = ch.enabled ? '🟢 Activo' : '⚫ Inactivo';
 
         return `
             <div class="ch-item">
                 <div class="ch-item-left">
-                    <div class="ch-platform">${label}</div>
+                    <div class="ch-platform">${label} <span style="font-size:12px;font-weight:400;color:var(--text-light)">${activeLbl}</span></div>
                     <div class="ch-sync-info">${syncText}</div>
-                    ${ch.sync_error ? `<div class="ch-error-msg">${escapeHtml(ch.sync_error)}</div>` : ''}
+                    ${!hasUrl ? '<div class="ch-sync-info" style="color:var(--warning)">⚠️ Sin URL de importación — configura la URL iCal</div>' : ''}
+                    ${ch.sync_error ? `<div class="ch-error-msg" title="${escapeHtml(ch.sync_error)}">❌ ${escapeHtml(ch.sync_error.slice(0, 80))}${ch.sync_error.length > 80 ? '…' : ''}</div>` : ''}
                 </div>
                 <div class="ch-item-right">
                     <span class="ch-status ${statusCls}">${statusTxt}</span>
-                    <label class="ch-toggle" title="${ch.enabled ? 'Desactivar' : 'Activar'}">
+                    ${hasUrl && ch.enabled ? `<button class="btn btn-ghost btn-sm ch-sync-btn" data-id="${ch.id}" title="Sincronizar ahora">🔄 Sync</button>` : ''}
+                    <label class="ch-toggle" title="${ch.enabled ? 'Desactivar sincronización' : 'Activar sincronización'}">
                         <input type="checkbox" class="ch-enabled-cb" data-id="${ch.id}"
                                ${ch.enabled ? 'checked' : ''}>
                         <span class="ch-toggle-slider"></span>
