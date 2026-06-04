@@ -147,7 +147,7 @@ function renderPage(booking) {
     const nights  = calcNights(checkIn, checkOut);
 
     // Título en la topbar
-    document.title = `Reserva #${booking.id} · ${name} — Casa Pometes`;
+    document.title = `Reserva #${booking.id} · ${name} — La llar de pometes`;
     document.getElementById('pageTitle').innerHTML =
         `<span style="color:var(--text-light);font-weight:500">Reserva</span>
          <span style="color:var(--text-light)">#${booking.id}</span>

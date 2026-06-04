@@ -5,8 +5,14 @@
 
 'use strict';
 
-/** URL base de la API REST */
-const API_BASE = 'https://lallardepometes.es/api';
+/** URL base de la API REST — relativa para que funcione en cualquier entorno */
+const API_BASE = (function () {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') {
+        return 'http://localhost:3000/api';
+    }
+    return '/api';
+}());
 
 /**
  * Realiza una petición autenticada a la API.
