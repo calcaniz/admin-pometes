@@ -1631,6 +1631,8 @@ function renderBadge(status) {
 function renderSource(source) {
     const map = {
         direct:  '🌐 Web directa',
+        phone:   '📞 Teléfono',
+        email:   '📧 Email',
         airbnb:  '🏠 Airbnb',
         booking: '📱 Booking'
     };

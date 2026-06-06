@@ -25,6 +25,7 @@ function initBookingsSection() {
     if (!BookingsState.initialized) {
         registerBookingFilters();
         initBulkBar();
+        initNewBookingModal();
         BookingsState.initialized = true;
     }
 
@@ -272,6 +273,19 @@ function renderTableActions(booking) {
         </button>
     `;
 
+    if (booking.status === 'confirmed') {
+        html += `
+            <button class="btn-icon" data-action="receipt" data-id="${booking.id}" title="Generar justificante" style="color:var(--navy)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+            </button>
+        `;
+    }
+
     if (booking.status === 'pending') {
         html += `
             <button class="btn-icon" data-action="confirm" data-id="${booking.id}" title="Confirmar reserva" style="color:var(--success)">
@@ -303,9 +317,10 @@ function handleTableAction(e) {
     const id     = btn.dataset.id;
 
     switch (action) {
-        case 'view':    goToBookingDetail(id); break;
-        case 'confirm': confirmBooking(id);    break;
-        case 'cancel':  cancelBooking(id);     break;
+        case 'view':    goToBookingDetail(id);                        break;
+        case 'confirm': confirmBooking(id);                           break;
+        case 'cancel':  cancelBooking(id);                            break;
+        case 'receipt': openReceiptModal(findBooking(id) || { id }); break;
     }
 }
 
@@ -365,6 +380,7 @@ function renderCards(bookings) {
                 <div class="booking-card-footer">
                     <div class="booking-card-actions">
                         <a class="btn btn-ghost btn-sm" href="booking-detail.html?id=${b.id}">👁️ Ver</a>
+                        ${b.status === 'confirmed' ? `<button class="btn btn-ghost btn-sm" data-action="receipt" data-id="${b.id}">🖨️ Justificante</button>` : ''}
                         ${b.status === 'pending' ? `<button class="btn btn-success btn-sm" data-action="confirm" data-id="${b.id}">✅ Confirmar</button>` : ''}
                         ${b.status !== 'cancelled' ? `<button class="btn btn-danger btn-sm" data-action="cancel" data-id="${b.id}">❌ Cancelar</button>` : ''}
                     </div>
@@ -591,6 +607,153 @@ function updateBookingInState(id, updates) {
     });
     BookingsState.all = AppState.bookings;
     updatePendingBadge();
+}
+
+/* =========================================================
+   MODAL: NUEVA RESERVA (ADMIN)
+   ========================================================= */
+
+function initNewBookingModal() {
+    var btn = document.getElementById('newBookingBtn');
+    if (!btn || btn.dataset.initialized) return;
+    btn.dataset.initialized = 'true';
+
+    btn.addEventListener('click', openNewBookingModal);
+    document.getElementById('newBookingModalClose')?.addEventListener('click', closeNewBookingModal);
+    document.getElementById('newBookingModalCancelBtn')?.addEventListener('click', closeNewBookingModal);
+    document.getElementById('newBookingModalOverlay')?.addEventListener('click', function (e) {
+        if (e.target === this) closeNewBookingModal();
+    });
+    document.getElementById('nb_calc_price_btn')?.addEventListener('click', calculatePriceForNewBooking);
+    document.getElementById('newBookingModalSubmitBtn')?.addEventListener('click', submitNewBooking);
+
+    // Limpiar precio calculado si cambian las fechas
+    ['nb_check_in', 'nb_check_out'].forEach(function (id) {
+        document.getElementById(id)?.addEventListener('change', function () {
+            document.getElementById('nb_total_price').value = '';
+            document.getElementById('nb_price_hint').style.display = 'none';
+        });
+    });
+}
+
+function openNewBookingModal() {
+    var overlay = document.getElementById('newBookingModalOverlay');
+    if (!overlay) return;
+
+    document.getElementById('newBookingForm').reset();
+    document.getElementById('nb_send_emails').checked = true;
+    var radioConfirmed = document.querySelector('input[name="nb_status"][value="confirmed"]');
+    if (radioConfirmed) radioConfirmed.checked = true;
+    document.getElementById('nb_form_error').hidden = true;
+    document.getElementById('nb_price_hint').style.display = 'none';
+
+    var today = new Date().toISOString().slice(0, 10);
+    document.getElementById('nb_check_in').min  = today;
+    document.getElementById('nb_check_out').min = today;
+
+    overlay.hidden = false;
+    setTimeout(function () { document.getElementById('nb_guest_name').focus(); }, 50);
+}
+
+function closeNewBookingModal() {
+    var overlay = document.getElementById('newBookingModalOverlay');
+    if (overlay) overlay.hidden = true;
+}
+
+async function calculatePriceForNewBooking() {
+    var checkIn  = document.getElementById('nb_check_in').value;
+    var checkOut = document.getElementById('nb_check_out').value;
+
+    if (!checkIn || !checkOut) {
+        showToast('Selecciona las fechas antes de calcular el precio', 'warning');
+        return;
+    }
+
+    var btn = document.getElementById('nb_calc_price_btn');
+    btn.disabled    = true;
+    btn.textContent = '...';
+
+    try {
+        var result = await PricingAPI.getQuote(checkIn, checkOut);
+        document.getElementById('nb_total_price').value = result.totalPrice;
+        var hint = document.getElementById('nb_price_hint');
+        hint.textContent    = result.nights + ' noche' + (result.nights !== 1 ? 's' : '') + ' × ' + result.pricePerNight + ' €/noche';
+        hint.style.display  = 'block';
+    } catch (err) {
+        showToast('No se pudo calcular el precio: ' + err.message, 'error');
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Calcular';
+    }
+}
+
+async function submitNewBooking() {
+    var submitBtn = document.getElementById('newBookingModalSubmitBtn');
+    var errorDiv  = document.getElementById('nb_form_error');
+    var errorMsg  = document.getElementById('nb_form_error_msg');
+
+    function showFormError(msg) {
+        errorMsg.textContent = msg;
+        errorDiv.hidden      = false;
+        submitBtn.disabled   = false;
+        submitBtn.textContent = 'Crear reserva';
+    }
+
+    errorDiv.hidden = true;
+
+    var guest_name   = document.getElementById('nb_guest_name').value.trim();
+    var guest_email  = document.getElementById('nb_guest_email').value.trim();
+    var guest_phone  = document.getElementById('nb_guest_phone').value.trim();
+    var check_in     = document.getElementById('nb_check_in').value;
+    var check_out    = document.getElementById('nb_check_out').value;
+    var guests       = parseInt(document.getElementById('nb_guests').value) || 1;
+    var source       = document.getElementById('nb_source').value;
+    var priceVal     = document.getElementById('nb_total_price').value;
+    var arrival_time = document.getElementById('nb_arrival_time').value;
+    var notes        = document.getElementById('nb_notes').value.trim();
+    var send_emails  = document.getElementById('nb_send_emails').checked;
+    var statusRadio  = document.querySelector('input[name="nb_status"]:checked');
+    var status       = statusRadio ? statusRadio.value : 'confirmed';
+
+    if (!guest_name)  return showFormError('El nombre del huésped es obligatorio');
+    if (!check_in)    return showFormError('La fecha de check-in es obligatoria');
+    if (!check_out)   return showFormError('La fecha de check-out es obligatoria');
+    if (check_in >= check_out) return showFormError('El check-out debe ser posterior al check-in');
+
+    if (send_emails && !guest_email) {
+        if (!confirm('No hay email del huésped — no se podrá enviar el email de confirmación. ¿Continuar igualmente?')) return;
+    }
+
+    submitBtn.disabled    = true;
+    submitBtn.textContent = 'Creando...';
+
+    try {
+        var data = await BookingsAPI.createAdmin({
+            guest_name,
+            guest_email:  guest_email  || null,
+            guest_phone:  guest_phone  || null,
+            check_in,
+            check_out,
+            guests,
+            source,
+            total_price:  priceVal !== '' ? parseFloat(priceVal) : null,
+            arrival_time: arrival_time || null,
+            notes:        notes        || null,
+            send_emails,
+            status,
+        });
+
+        closeNewBookingModal();
+        showToast('Reserva #' + data.id + ' creada correctamente', 'success');
+
+        // Recargar lista de reservas
+        AppState.bookings  = [];
+        BookingsState.all  = [];
+        await loadBookings();
+
+    } catch (err) {
+        showFormError(err.message || 'Error al crear la reserva');
+    }
 }
 
 /** Muestra/oculta el estado de carga en la tabla */

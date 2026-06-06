@@ -171,6 +171,11 @@ const BookingsAPI = {
     /** Historial de emails de una reserva */
     getEmailLogs(bookingId) {
         return apiGet(`/email-logs?booking_id=${bookingId}`);
+    },
+
+    /** Crea una reserva desde el panel de administración */
+    createAdmin(data) {
+        return apiPost('/bookings/admin', data);
     }
 };
 

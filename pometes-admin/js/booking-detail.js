@@ -118,11 +118,13 @@ document.addEventListener('DOMContentLoaded', function () {
     loadBooking(id);
 });
 
+var currentBooking = null;
+
 async function loadBooking(id) {
     try {
-        const data    = await BookingsAPI.getById(id);
-        const booking = data.booking || data;
-        renderPage(booking);
+        const data = await BookingsAPI.getById(id);
+        currentBooking = data.booking || data;
+        renderPage(currentBooking);
     } catch (err) {
         showError('No se pudo cargar la reserva: ' + err.message);
     }
@@ -163,6 +165,9 @@ function renderTopbarActions(booking) {
     const el = document.getElementById('pageActions');
     let html = '';
 
+    if (booking.status === 'confirmed') {
+        html += `<button class="btn btn-ghost btn-sm" onclick="openReceiptModal(currentBooking)">🖨️ Justificante</button>`;
+    }
     if (booking.status === 'pending') {
         html += `<button class="btn btn-success btn-sm" onclick="doConfirm(${booking.id})">✅ Confirmar</button>`;
     }
